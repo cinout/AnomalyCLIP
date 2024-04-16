@@ -9,7 +9,7 @@
 #SBATCH --qos=gpgpudeeplearn
 #SBATCH --constraint=dlg3|dlg4|dlg5
 
-#SBATCH --job-name="0sh"
+#SBATCH --job-name="tr_mv"
 #SBATCH --account=punim1623
 #SBATCH --time=0-02:30:00
 
