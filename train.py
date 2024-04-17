@@ -163,13 +163,13 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--depth", type=int, default=9, help="image size"
+        "--depth", type=int, default=9, help="learnabel_text_embedding_depth"
     )  # TODO: what is this?
     parser.add_argument(
-        "--n_ctx", type=int, default=12, help="zero shot"
+        "--n_ctx", type=int, default=12, help="Prompt_length"
     )  # TODO: what is this?
     parser.add_argument(
-        "--t_n_ctx", type=int, default=4, help="zero shot"
+        "--t_n_ctx", type=int, default=4, help="learnabel_text_embedding_length"
     )  # TODO: what is this?
     parser.add_argument(
         "--feature_map_layer",
