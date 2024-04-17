@@ -36,6 +36,7 @@ def train(args):
         "learnabel_text_embedding_length": args.t_n_ctx,
     }
 
+    # TODO: what happens here?
     model, _ = AnomalyCLIP_lib.load(
         "ViT-L/14@336px", device=device, design_details=AnomalyCLIP_parameters
     )
@@ -52,6 +53,7 @@ def train(args):
     )
 
     ##########################################################################################
+    # TODO: what happens here?
     prompt_learner = AnomalyCLIP_PromptLearner(model.to("cpu"), AnomalyCLIP_parameters)
     prompt_learner.to(device)
     model.to(device)
@@ -65,11 +67,12 @@ def train(args):
     loss_focal = FocalLoss()
     loss_dice = BinaryDiceLoss()
 
+    # TODO: difference between model and prompt_learner?
     model.eval()
     prompt_learner.train()
     for epoch in tqdm(range(args.epoch)):
-        model.eval()
-        prompt_learner.train()
+        # model.eval()
+        # prompt_learner.train()
         loss_list = []
         image_loss_list = []
 
@@ -86,6 +89,7 @@ def train(args):
                 # DPAM_layer represents the number of layer refined by DPAM from top to bottom
                 # DPAM_layer = 1, no DPAM is used
                 # DPAM_layer = 20 as default
+                # TODO: whqat is DPAM_layer
                 image_features, patch_features = model.encode_image(
                     image, args.features_list, DPAM_layer=20
                 )
@@ -94,6 +98,7 @@ def train(args):
                 )
 
             ####################################
+            # TODO: what are these outputs?
             prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
                 cls_id=None
             )
@@ -117,6 +122,7 @@ def train(args):
                     patch_feature = patch_feature / patch_feature.norm(
                         dim=-1, keepdim=True
                     )
+                    # TODO: what happens here?
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(
                         patch_feature, text_features[0]
                     )
@@ -135,6 +141,7 @@ def train(args):
             (loss + image_loss).backward()
             optimizer.step()
             loss_list.append(loss.item())
+
         # logs
         if (epoch + 1) % args.print_freq == 0:
             logger.info(
@@ -144,8 +151,9 @@ def train(args):
             )
 
         # save model
-        if (epoch + 1) % args.save_freq == 0:
-            ckp_path = os.path.join(args.save_path, "epoch_" + str(epoch + 1) + ".pth")
+        # if (epoch + 1) % args.save_freq == 0:
+        if epoch + 1 == args.epoch:
+            ckp_path = os.path.join(args.save_path, "epoch_" + str(args.epoch) + ".pth")
             torch.save({"prompt_learner": prompt_learner.state_dict()}, ckp_path)
 
 
