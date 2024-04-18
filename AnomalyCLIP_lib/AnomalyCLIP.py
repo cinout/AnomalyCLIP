@@ -173,7 +173,6 @@ class ResidualAttentionBlock(nn.Module):
             return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
 
     def forward(self, x, whole=False, ffn=False):
-        # print("xxxxx",x.shape)
         # dual paths for blocks deeper than "d"
 
         if isinstance(self.attn, Attention):
@@ -185,7 +184,6 @@ class ResidualAttentionBlock(nn.Module):
                     x_ori += x_ori_res
                     x_ori = x_ori + self.mlp(self.ln_2(x_ori))
                     x += x_res  # skip ffn for the new path
-                    # print('hellloooo')
                     return [x, x_ori]
                 else:
                     x, x_ori_1 = x
@@ -330,7 +328,11 @@ class Transformer(nn.Module):
         self.layers = layers
         self.text_layer = text_layer
         self.design_deatails = design_details
-        print("text_layer", self.text_layer)  # False, then True
+
+        print(
+            "text_layer", self.text_layer
+        )  # False if from VisionTransformer, True if just text Transformer
+
         if self.text_layer and (design_details is not None):
             self.resblocks = nn.ModuleList(
                 [
@@ -372,7 +374,6 @@ class Transformer(nn.Module):
         for r in self.resblocks:
             idx += 1
             x = r(x, ffn=ffn)
-            # print("out_layers", out_layers, idx)
             if idx in out_layers:
                 if isinstance(x, list):
                     out_tokens.append(x[0])
@@ -449,6 +450,7 @@ class VisionTransformer(nn.Module):
     def DAPM_replace(self, DPAM_layer):
         if DPAM_layer is not None:
             for i in range(1, DPAM_layer):
+                # create v-v attention, which returns [v-v, original]
                 self.attn = Attention(
                     self.embed_dim, self.embed_dim, self.num_heads, True
                 )
@@ -558,6 +560,7 @@ class AnomalyCLIP(nn.Module):
         self.context_length = context_length
 
         if isinstance(vision_layers, (tuple, list)):
+            # NO
             vision_heads = vision_width * 32 // 64
             self.visual = ModifiedResNet(
                 layers=vision_layers,
@@ -567,6 +570,7 @@ class AnomalyCLIP(nn.Module):
                 width=vision_width,
             )
         else:
+            # arrive here
             vision_heads = vision_width // 64
             self.visual = VisionTransformer(
                 input_resolution=image_resolution,
@@ -577,6 +581,7 @@ class AnomalyCLIP(nn.Module):
                 output_dim=embed_dim,
             )
 
+        # what is this transformer for? (for processing text)
         self.transformer = Transformer(
             width=transformer_width,
             layers=transformer_layers,
@@ -628,6 +633,7 @@ class AnomalyCLIP(nn.Module):
     def dtype(self):
         return self.visual.conv1.weight.dtype
 
+    # TODO: to understand, used in train/test
     def encode_image(
         self,
         image,
@@ -640,12 +646,13 @@ class AnomalyCLIP(nn.Module):
         return self.visual(
             image.type(self.dtype),
             feature_list,
-            ori_patch=ori_patch,
-            proj_use=proj_use,
-            DPAM_layer=DPAM_layer,
-            ffn=ffn,
+            ori_patch=ori_patch,  # False
+            proj_use=proj_use,  # True
+            DPAM_layer=DPAM_layer,  # 20
+            ffn=ffn,  # False
         )
 
+    # NOT USED in the code
     def encode_text(self, text):
         x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
 
@@ -661,6 +668,7 @@ class AnomalyCLIP(nn.Module):
 
         return x
 
+    # TODO: to understand, used in train/test
     def encode_text_learn(
         self,
         prompts,
@@ -670,16 +678,13 @@ class AnomalyCLIP(nn.Module):
     ):
         cast_dtype = self.transformer.get_cast_dtype()
 
-        # x = self.token_embedding(text).to(cast_dtype)  # [batch_size, n_ctx, d_model]
-
-        # x = x + self.positional_embedding.to(cast_dtype)
-
         x = prompts + self.positional_embedding.to(cast_dtype)
         x = x.permute(1, 0, 2)  # NLD -> LND
-        # print("test", x.shape, len(deep_compound_prompts_text))
+
         if deep_compound_prompts_text is None:
             x = self.transformer(x)
         else:
+            # TODO: to understand how this works
             x = self.transformer([x, deep_compound_prompts_text, 0])
         x = x.permute(1, 0, 2)  # LND -> NLD
         x = self.ln_final(x).type(self.dtype)  # [batch_size, n_ctx, transformer.width]
@@ -690,7 +695,9 @@ class AnomalyCLIP(nn.Module):
         )
         return x
 
+    # NOT USED in the code
     def forward(self, image, text):
+        print("ever jhere???")
         image_features = self.encode_image(image)
         text_features = self.encode_text(text)
 

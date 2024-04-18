@@ -36,7 +36,6 @@ def train(args):
         "learnabel_text_embedding_length": args.t_n_ctx,
     }
 
-    # TODO: what happens here?
     model, _ = AnomalyCLIP_lib.load(
         "ViT-L/14@336px", device=device, design_details=AnomalyCLIP_parameters
     )
@@ -53,7 +52,6 @@ def train(args):
     )
 
     ##########################################################################################
-    # TODO: what happens here?
     prompt_learner = AnomalyCLIP_PromptLearner(model.to("cpu"), AnomalyCLIP_parameters)
     prompt_learner.to(device)
     model.to(device)
@@ -67,12 +65,9 @@ def train(args):
     loss_focal = FocalLoss()
     loss_dice = BinaryDiceLoss()
 
-    # TODO: difference between model and prompt_learner?
     model.eval()
     prompt_learner.train()
     for epoch in tqdm(range(args.epoch)):
-        # model.eval()
-        # prompt_learner.train()
         loss_list = []
         image_loss_list = []
 
@@ -89,7 +84,7 @@ def train(args):
                 # DPAM_layer represents the number of layer refined by DPAM from top to bottom
                 # DPAM_layer = 1, no DPAM is used
                 # DPAM_layer = 20 as default
-                # TODO: whqat is DPAM_layer
+
                 image_features, patch_features = model.encode_image(
                     image, args.features_list, DPAM_layer=20
                 )
@@ -98,7 +93,6 @@ def train(args):
                 )
 
             ####################################
-            # TODO: what are these outputs?
             prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
                 cls_id=None
             )
@@ -112,7 +106,7 @@ def train(args):
             # Apply DPAM surgery
             text_probs = image_features.unsqueeze(1) @ text_features.permute(0, 2, 1)
             text_probs = text_probs[:, 0, ...] / 0.07
-            image_loss = F.cross_entropy(text_probs.squeeze(), label.long().cuda())
+            image_loss = F.cross_entropy(text_probs.squeeze(), label.long().to(device))
             image_loss_list.append(image_loss.item())
             #########################################################################
             similarity_map_list = []
@@ -122,7 +116,6 @@ def train(args):
                     patch_feature = patch_feature / patch_feature.norm(
                         dim=-1, keepdim=True
                     )
-                    # TODO: what happens here?
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(
                         patch_feature, text_features[0]
                     )
@@ -171,14 +164,23 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--depth", type=int, default=9, help="learnabel_text_embedding_depth"
-    )  # TODO: what is this?
+        "--depth",
+        type=int,
+        default=9,
+        help="learnabel_text_embedding_depth, The learnable token embeddings are attached to the first 9 layers of the text encoder",
+    )
     parser.add_argument(
-        "--n_ctx", type=int, default=12, help="Prompt_length"
-    )  # TODO: what is this?
+        "--n_ctx",
+        type=int,
+        default=12,
+        help="Prompt_length, length of learnable word embeddings E",
+    )
     parser.add_argument(
-        "--t_n_ctx", type=int, default=4, help="learnabel_text_embedding_length"
-    )  # TODO: what is this?
+        "--t_n_ctx",
+        type=int,
+        default=4,
+        help="learnabel_text_embedding_length, length of learnable token embeddings in each layer",
+    )
     parser.add_argument(
         "--feature_map_layer",
         type=int,

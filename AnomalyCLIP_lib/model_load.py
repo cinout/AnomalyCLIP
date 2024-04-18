@@ -168,7 +168,7 @@ def load(
     preprocess : Callable[[PIL.Image], torch.Tensor]
         A torchvision transform that converts a PIL image into a tensor that the returned model can take as its input
     """
-    print("name", name)  # ViT-L/14@336px
+
     if name in _MODELS:
         # model_path = _download(_MODELS[name], download_root or os.path.expanduser("~/.cache/clip"))
         model_path = _download(
@@ -271,6 +271,7 @@ def load(
     return model, _transform(model.input_resolution.item())
 
 
+# TODO: to understand
 def get_similarity_map(sm, shape):
     side = int(sm.shape[1] ** 0.5)
     sm = sm.reshape(sm.shape[0], side, side, -1).permute(0, 3, 1, 2)
@@ -279,6 +280,7 @@ def get_similarity_map(sm, shape):
     return sm
 
 
+# TODO: to understand
 def compute_similarity(image_features, text_features, t=2):
     prob_1 = image_features[:, :1, :] @ text_features.t()
     b, n_t, n_i, c = (
