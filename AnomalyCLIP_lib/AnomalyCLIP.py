@@ -67,7 +67,7 @@ class Bottleneck(nn.Module):
         return out
 
 
-# implement attention module for v-v self-attention
+# For VV self-attention!!!!!
 class Attention(nn.Module):
     def __init__(
         self,
@@ -239,7 +239,9 @@ class ResidualAttentionBlock_learnable_token(nn.Module):
         self.attn_mask = attn_mask
 
         self.i = i
-        self.compound_prompt_nctx = design_details["learnabel_text_embedding_length"]
+        self.compound_prompt_nctx = design_details[
+            "learnabel_text_embedding_length"
+        ]  # 4
         self.text_layer = text_layer
         if i == 0:
             self.first_layer = True
@@ -262,6 +264,7 @@ class ResidualAttentionBlock_learnable_token(nn.Module):
     def forward(self, inputs):
 
         # dual paths for blocks deeper than "d"
+        # NOT ARRIVED
         if isinstance(self.attn, Attention):
             x = inputs[0]
             if isinstance(x, list):
@@ -285,26 +288,33 @@ class ResidualAttentionBlock_learnable_token(nn.Module):
 
         # singl path before "d"
         else:
-            x = inputs[0]
+            # ARRIVED HERE
+            # this is where text transformer works
+            x = inputs[0]  # [77, 2, 768]
+
             compound_prompts_deeper = inputs[1]
-            counter = inputs[2]
+            counter = inputs[2]  # 0,0,1,2...,8,8,8
+
             if not self.first_layer:
                 # First check if the ith layer needs compound prompts or not
-                if not (counter > len(compound_prompts_deeper) - 1):
+                if not (counter > len(compound_prompts_deeper) - 1):  # if counter <= 7
                     # Appending the learnable tokens in different way
-                    # x -> [77, NCLS, DIM]
-                    # First remove the learnable tokens from previous layer
+
+                    # First remove the learnable tokens (middle part) from previous layer
                     prefix = x[:1, :, :]
                     suffix = x[1 + self.compound_prompt_nctx :, :, :]
+
+                    # then create the new learnable tokens
                     textual_context = compound_prompts_deeper[counter]
                     textual_context = (
                         textual_context.expand(x.shape[1], -1, -1)
                         .permute(1, 0, 2)
                         .half()
                     )
-                    # Add the learnable tokens of this layer with the input, replaced by previous
-                    # layer learnable tokens
+
+                    # Add the learnable tokens of this layer to the input
                     x = torch.cat([prefix, textual_context, suffix], dim=0)
+
                     # Once done, update the counter, so that the next time, it does not use same learnable tokens
                     counter += 1
             x = x + self.attention(self.ln_1(x))
@@ -316,7 +326,7 @@ class Transformer(nn.Module):
     def __init__(
         self,
         width: int,
-        layers: int,
+        layers: int,  # 24
         heads: int,
         attn_mask: torch.Tensor = None,
         need_weights: bool = False,
@@ -343,6 +353,7 @@ class Transformer(nn.Module):
                 ]
             )
         else:
+            # the resblocks for VisionTransformer, whose attn are replaced with VV later
             self.resblocks = nn.ModuleList(
                 [
                     ResidualAttentionBlock(
@@ -376,10 +387,10 @@ class Transformer(nn.Module):
             x = r(x, ffn=ffn)
             if idx in out_layers:
                 if isinstance(x, list):
-                    out_tokens.append(x[0])
+                    out_tokens.append(x[0])  # difference
                 else:
                     out_tokens.append(x)
-        return x, out_tokens
+        return x, out_tokens  # out_tokens: len==4, each size [1370, 8, 1024]
 
     def forward(
         self, x: torch.Tensor, out_layers=[6, 12, 18, 24], DPAM_layer=None, ffn=False
@@ -394,12 +405,14 @@ class Transformer(nn.Module):
             else:
                 x, out_tokens = self.AnomalyCLIP_forward(x, out_layers, ffn)
                 return x, out_tokens
+
         # text encoder forward
         # ori text embedding
         elif self.design_deatails is None:
             for idx, r in enumerate(self.resblocks):
                 x = r(x)
             return x
+
         # insert learnable text embedding
         elif self.design_deatails is not None:
             for idx, r in enumerate(self.resblocks):
@@ -413,12 +426,12 @@ class Transformer(nn.Module):
 class VisionTransformer(nn.Module):
     def __init__(
         self,
-        input_resolution: int,
-        patch_size: int,
-        width: int,
-        layers: int,
-        heads: int,
-        output_dim: int,
+        input_resolution: int,  # 336
+        patch_size: int,  # 14
+        width: int,  # 1024
+        layers: int,  # 24
+        heads: int,  # 16
+        output_dim: int,  # 768
     ):
         super().__init__()
         self.input_resolution = input_resolution
@@ -432,10 +445,10 @@ class VisionTransformer(nn.Module):
         )
 
         scale = width**-0.5
-        self.class_embedding = nn.Parameter(scale * torch.randn(width))
+        self.class_embedding = nn.Parameter(scale * torch.randn(width))  # [1024]
         self.positional_embedding = nn.Parameter(
             scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width)
-        )
+        )  # [577, 1024]
         self.ln_pre = LayerNorm(width)
 
         self.transformer = Transformer(width, layers, heads, need_weights=True)
@@ -444,12 +457,14 @@ class VisionTransformer(nn.Module):
         self.num_heads = heads
 
         self.ln_post = LayerNorm(width)
-        self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
+        self.proj = nn.Parameter(scale * torch.randn(width, output_dim))  # [1024, 768]
 
     @torch.no_grad()
     def DAPM_replace(self, DPAM_layer):
         if DPAM_layer is not None:
-            for i in range(1, DPAM_layer):
+            for i in range(
+                1, DPAM_layer
+            ):  # i [1, 19], inclusive <=> layer [6, 24] inclusive
                 # create v-v attention, which returns [v-v, original]
                 self.attn = Attention(
                     self.embed_dim, self.embed_dim, self.num_heads, True
@@ -471,7 +486,7 @@ class VisionTransformer(nn.Module):
     @torch.no_grad()
     def forward(
         self,
-        x: torch.Tensor,
+        x: torch.Tensor,  # [8, 3, 518, 518]
         features_list,
         ori_patch=False,
         proj_use=True,
@@ -479,9 +494,11 @@ class VisionTransformer(nn.Module):
         ffn=False,
     ):
 
-        x = self.conv1(x)  # shape = [*, width, grid, grid]
-        x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
-        x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
+        x = self.conv1(x)  # shape = [*, width, grid, grid], [8, 1024, 37, 37]
+        x = x.reshape(
+            x.shape[0], x.shape[1], -1
+        )  # shape = [*, width, grid ** 2], [8, 1024, 1369]
+        x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width], [8, 1369, 1024]
         x = torch.cat(
             [
                 self.class_embedding.to(x.dtype)
@@ -491,9 +508,9 @@ class VisionTransformer(nn.Module):
                 x,
             ],
             dim=1,
-        )  # shape = [*, grid ** 2 + 1, width]
-        side = int((self.positional_embedding.shape[0] - 1) ** 0.5)
-        new_side = int((x.shape[1] - 1) ** 0.5)
+        )  # shape = [*, grid ** 2 + 1, width], [8, 1370, 1024]
+        side = int((self.positional_embedding.shape[0] - 1) ** 0.5)  # 24
+        new_side = int((x.shape[1] - 1) ** 0.5)  # 37
 
         # update the position embedding during inference for varied input size
         if side != new_side:
@@ -513,54 +530,53 @@ class VisionTransformer(nn.Module):
             )
 
         pos = self.positional_embedding.to(x.dtype)
-        x = x + pos
-        x = self.ln_pre(x)
+        x = x + pos  # [8, 1370, 1024]
+        x = self.ln_pre(x)  # [8, 1370, 1024]
 
-        x = x.permute(1, 0, 2)  # NLD -> LND
+        x = x.permute(1, 0, 2)  # NLD -> LND, [1370, 8, 1024]
+
         [x, x_ori], patch_tokens = self.transformer(
             x, features_list, DPAM_layer=DPAM_layer, ffn=ffn
-        )
+        )  # x.shape: [1370, 8, 1024]; x_ori.shape: [1370, 8, 1024]
+        # len(patch_tokens): 4; patch_tokens[0].shape: torch.Size([1370, 8, 1024])
 
-        if True:
-            patch_token_list = []
-            for patch_token in patch_tokens:
-                patch_token = (
-                    self.ln_post(patch_token.permute(1, 0, 2)) @ self.proj
-                )  # LND -> NLD
-                patch_token_list.append(patch_token)
-            patch_tokens = patch_token_list
+        patch_token_list = []
+        for patch_token in patch_tokens:
+            patch_token = (
+                self.ln_post(patch_token.permute(1, 0, 2)) @ self.proj
+            )  # LND -> NLD
+            patch_token_list.append(patch_token)
+        patch_tokens = patch_token_list
+        # len(patch_tokens: 4, patch_tokens[0].shape: torch.Size([8, 1370, 768])
 
-            return x_ori[0, :, :] @ self.proj, patch_tokens
-
-        return x
-
-
-from thop import profile
+        # x_ori[0] must be the GLOBAL embedding
+        # return shape: [8, 768], list=4*[8, 1370, 768]
+        return x_ori[0, :, :] @ self.proj, patch_tokens
 
 
 class AnomalyCLIP(nn.Module):
     def __init__(
         self,
-        embed_dim: int,
+        embed_dim: int,  # 768
         # vision
         image_resolution: int,
         vision_layers: Union[Tuple[int, int, int, int], int],
-        vision_width: int,
+        vision_width: int,  # 1024
         vision_patch_size: int,
         # text
         context_length: int,
         vocab_size: int,
-        transformer_width: int,
+        transformer_width: int,  # 768
         transformer_heads: int,
         transformer_layers: int,
         design_details=None,
     ):
         super().__init__()
 
-        self.context_length = context_length
+        self.context_length = context_length  # 77
 
         if isinstance(vision_layers, (tuple, list)):
-            # NO
+            # NO!!!
             vision_heads = vision_width * 32 // 64
             self.visual = ModifiedResNet(
                 layers=vision_layers,
@@ -591,15 +607,21 @@ class AnomalyCLIP(nn.Module):
             design_details=design_details,
         )
 
-        self.vocab_size = vocab_size
-        self.token_embedding = nn.Embedding(vocab_size, transformer_width)
+        self.vocab_size = vocab_size  # 49408
+        self.token_embedding = nn.Embedding(
+            vocab_size, transformer_width
+        )  # a lookup table?
+
         self.positional_embedding = nn.Parameter(
             torch.empty(self.context_length, transformer_width)
-        )
-        self.ln_final = LayerNorm(transformer_width)
+        )  # [77, 768]
 
-        self.text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
-        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))
+        self.ln_final = LayerNorm(transformer_width)
+        self.text_projection = nn.Parameter(
+            torch.empty(transformer_width, embed_dim)
+        )  # [768, 768]
+
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / 0.07))  # NOT USED
 
         self.initialize_parameters()
 
@@ -633,7 +655,6 @@ class AnomalyCLIP(nn.Module):
     def dtype(self):
         return self.visual.conv1.weight.dtype
 
-    # TODO: to understand, used in train/test
     def encode_image(
         self,
         image,
@@ -643,6 +664,7 @@ class AnomalyCLIP(nn.Module):
         DPAM_layer=None,
         ffn=False,
     ):
+        # return shape: global:[8, 768], local=4*[8, 1370, 768]
         return self.visual(
             image.type(self.dtype),
             feature_list,
@@ -668,31 +690,35 @@ class AnomalyCLIP(nn.Module):
 
         return x
 
-    # TODO: to understand, used in train/test
     def encode_text_learn(
         self,
-        prompts,
-        tokenized_prompts,
-        deep_compound_prompts_text=None,
+        prompts,  # [2, 77, 768] embeddings with 12 Xs replaced already
+        tokenized_prompts,  # [2, 77] prompts are tokenized, but not clip_model.token_embedding, with 12 Xs included
+        deep_compound_prompts_text=None,  # [4, 768] * 8
         normalize: bool = False,
     ):
         cast_dtype = self.transformer.get_cast_dtype()
 
-        x = prompts + self.positional_embedding.to(cast_dtype)
-        x = x.permute(1, 0, 2)  # NLD -> LND
+        x = prompts + self.positional_embedding.to(cast_dtype)  # [2, 77, 768]
+        x = x.permute(1, 0, 2)  # NLD -> LND  [77, 2, 768]
 
         if deep_compound_prompts_text is None:
             x = self.transformer(x)
         else:
-            # TODO: to understand how this works
-            x = self.transformer([x, deep_compound_prompts_text, 0])
-        x = x.permute(1, 0, 2)  # LND -> NLD
-        x = self.ln_final(x).type(self.dtype)  # [batch_size, n_ctx, transformer.width]
+            x = self.transformer([x, deep_compound_prompts_text, 0])  # [77, 2, 768]
+
+        x = x.permute(1, 0, 2)  # LND -> NLD, [2, 77, 768]
+        x = self.ln_final(x).type(
+            self.dtype
+        )  # [batch_size, n_ctx, transformer.width], [2, 77, 768]
+
         # take features from the eot embedding (eot_token is the highest number in each sequence)
+        # the argmax operation takes the representation at the EOT (end of text) position. There's nothing inherently wrong with taking the average along the sequence dimension, but taking representation at the position of a special token (e.g. the CLS token in ViT and BERT) is empirically known to work better. Other representations are still used since in each attention layer, the [EOT] token is attended to every other location. Argmax is used to locate the index (i_eot) of [EOT] at tokenized prompts. Once we locate it , we use the features of [EOT] by x[batchsize, i_eot] to represent the features of prompts
         x = (
             x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)]
             @ self.text_projection
-        )
+        )  # [2. 768]
+
         return x
 
     # NOT USED in the code
