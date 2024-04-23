@@ -11,7 +11,7 @@
 
 #SBATCH --job-name="tr_mv"
 #SBATCH --account=punim1623
-#SBATCH --time=0-08:30:00
+#SBATCH --time=0-04:30:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -46,11 +46,10 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec_meta_net_$SEED/ \
+  --save_path ./checkpoints/pretrained_mvtec_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
-  --meta_net \
   --seed $SEED \
 
 ##Log this job's resource usage stats###
