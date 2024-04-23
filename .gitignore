@@ -18,6 +18,7 @@ wheels/
 runs*/
 data/loco
 data/mvtec
+data/visa
 output*/
 .DS_Store
 .DS_store
