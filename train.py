@@ -15,7 +15,6 @@ from utils import get_transform
 
 
 def setup_seed(seed):
-    print(f"--- applied seed is {seed} ---")
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
@@ -224,5 +223,8 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=111, help="random seed")
     parser.add_argument("--meta_net", action="store_true")
     args = parser.parse_args()
+    print(
+        "\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items()))
+    )
     setup_seed(args.seed)
     train(args)

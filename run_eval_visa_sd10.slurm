@@ -2,16 +2,16 @@
 
 ###SBATCH --partition=gpu-a100
 
-#SBATCH --partition=feit-gpu-a100
-#SBATCH --qos=feit
+###SBATCH --partition=feit-gpu-a100
+###SBATCH --qos=feit
 
-###SBATCH --partition=deeplearn
-###SBATCH --qos=gpgpudeeplearn
-###SBATCH --constraint=dlg3|dlg4|dlg5
+#SBATCH --partition=deeplearn
+#SBATCH --qos=gpgpudeeplearn
+#SBATCH --constraint=dlg4|dlg5
 
 #SBATCH --job-name="ev_vis"
 #SBATCH --account=punim1623
-#SBATCH --time=0-01:00:00
+#SBATCH --time=0-03:00:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -33,14 +33,15 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-### TODO: update batch_size (8), seed
 SEED=10
+
+# FIXME: update save_path
 
 python test.py \
   --dataset visa \
   --data_path data/visa \
   --save_path ./results/visa/zero_shot \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_$SEED/epoch_15.pth \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_meta_net_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \

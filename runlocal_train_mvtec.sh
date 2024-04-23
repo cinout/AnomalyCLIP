@@ -1,3 +1,5 @@
+SEED=10
+
 python train.py \
   --dataset mvtec \
   --train_data_path data/mvtec \
@@ -7,8 +9,9 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec/ \
+  --save_path ./checkpoints/pretrained_mvtec_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
   --meta_net \
+  --seed $SEED \

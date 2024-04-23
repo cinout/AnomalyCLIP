@@ -33,8 +33,10 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=10
+SEED=30
+
 # FIXME: update save_path
+
 python train.py \
   --dataset mvtec \
   --train_data_path data/mvtec \
