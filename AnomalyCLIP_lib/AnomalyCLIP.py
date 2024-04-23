@@ -331,17 +331,13 @@ class Transformer(nn.Module):
         attn_mask: torch.Tensor = None,
         need_weights: bool = False,
         design_details=None,
-        text_layer=False,
+        text_layer=False,  # False if from VisionTransformer, True if just text Transformer
     ):
         super().__init__()
         self.width = width
         self.layers = layers
         self.text_layer = text_layer
         self.design_deatails = design_details
-
-        print(
-            "text_layer", self.text_layer
-        )  # False if from VisionTransformer, True if just text Transformer
 
         if self.text_layer and (design_details is not None):
             self.resblocks = nn.ModuleList(

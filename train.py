@@ -15,6 +15,7 @@ from utils import get_transform
 
 
 def setup_seed(seed):
+    print(f"--- applied seed is {seed} ---")
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
@@ -52,7 +53,9 @@ def train(args):
     )
 
     ##########################################################################################
-    prompt_learner = AnomalyCLIP_PromptLearner(model.to("cpu"), AnomalyCLIP_parameters)
+    prompt_learner = AnomalyCLIP_PromptLearner(
+        model.to("cpu"), AnomalyCLIP_parameters, meta_net=args.meta_net
+    )
     prompt_learner.to(device)
     model.to(device)
     model.visual.DAPM_replace(DPAM_layer=20)
@@ -90,24 +93,38 @@ def train(args):
                 )
                 image_features = image_features / image_features.norm(
                     dim=-1, keepdim=True
-                )
+                )  # [8, 768]
 
             ####################################
             prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
-                cls_id=None
+                image_features=image_features, cls_id=None
             )
             text_features = model.encode_text_learn(
                 prompts, tokenized_prompts, compound_prompts_text
-            ).float()
+            ).float()  # [2, 768]
             text_features = torch.stack(
                 torch.chunk(text_features, dim=0, chunks=2), dim=1
-            )
-            text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+            )  # [1, 2, 768]
+
+            text_features = text_features / text_features.norm(
+                dim=-1, keepdim=True
+            )  # [1, 2, 768]
+
             # Apply DPAM surgery
-            text_probs = image_features.unsqueeze(1) @ text_features.permute(0, 2, 1)
-            text_probs = text_probs[:, 0, ...] / 0.07
-            image_loss = F.cross_entropy(text_probs.squeeze(), label.long().to(device))
+            text_probs = image_features.unsqueeze(1) @ text_features.permute(
+                0, 2, 1
+            )  # [8, 1, 2], the same text_features are applied to 8 images
+
+            text_probs = text_probs[:, 0, ...] / 0.07  # [8, 2]
+
+            image_loss = F.cross_entropy(
+                text_probs, label.long().to(device)
+            )  #  no shape
+            # image_loss = F.cross_entropy(
+            #     text_probs.squeeze(), label.long().to(device)
+            # )  #  no shape
             image_loss_list.append(image_loss.item())
+
             #########################################################################
             similarity_map_list = []
             # similarity_map_list.append(similarity_map)
@@ -205,6 +222,7 @@ if __name__ == "__main__":
     parser.add_argument("--print_freq", type=int, default=1, help="print frequency")
     parser.add_argument("--save_freq", type=int, default=1, help="save frequency")
     parser.add_argument("--seed", type=int, default=111, help="random seed")
+    parser.add_argument("--meta_net", action="store_true")
     args = parser.parse_args()
     setup_seed(args.seed)
     train(args)

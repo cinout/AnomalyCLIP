@@ -32,6 +32,19 @@ from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
 
 
+def generate_text_features(prompt_learner, model, image_features=None):
+    prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
+        image_features=image_features
+    )
+    text_features = model.encode_text_learn(
+        prompts, tokenized_prompts, compound_prompts_text
+    ).float()
+    text_features = torch.stack(torch.chunk(text_features, dim=0, chunks=2), dim=1)
+    text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+
+    return text_features
+
+
 def test(args):
     img_size = args.image_size
     features_list = args.features_list
@@ -79,19 +92,17 @@ def test(args):
         metrics[obj]["image-auroc"] = 0
         metrics[obj]["image-ap"] = 0
 
-    prompt_learner = AnomalyCLIP_PromptLearner(model.to("cpu"), AnomalyCLIP_parameters)
+    prompt_learner = AnomalyCLIP_PromptLearner(
+        model.to("cpu"), AnomalyCLIP_parameters, meta_net=args.meta_net
+    )
     checkpoint = torch.load(args.checkpoint_path)
     prompt_learner.load_state_dict(checkpoint["prompt_learner"])
     prompt_learner.to(device)
     model.to(device)
     model.visual.DAPM_replace(DPAM_layer=20)
 
-    prompts, tokenized_prompts, compound_prompts_text = prompt_learner(cls_id=None)
-    text_features = model.encode_text_learn(
-        prompts, tokenized_prompts, compound_prompts_text
-    ).float()
-    text_features = torch.stack(torch.chunk(text_features, dim=0, chunks=2), dim=1)
-    text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+    if not args.meta_net:
+        text_features = generate_text_features(prompt_learner, model)
 
     model.to(device)
     for idx, items in enumerate(tqdm(test_dataloader)):
@@ -108,6 +119,11 @@ def test(args):
                 image, features_list, DPAM_layer=20
             )
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+
+            if args.meta_net:
+                text_features = generate_text_features(
+                    prompt_learner, model, image_features
+                )
 
             text_probs = image_features @ text_features.permute(0, 2, 1)
             text_probs = (text_probs / 0.07).softmax(-1)
@@ -271,6 +287,7 @@ if __name__ == "__main__":
     parser.add_argument("--metrics", type=str, default="image-pixel-level")
     parser.add_argument("--seed", type=int, default=111, help="random seed")
     parser.add_argument("--sigma", type=int, default=4, help="zero shot")
+    parser.add_argument("--meta_net", action="store_true")
 
     args = parser.parse_args()
     print(args)

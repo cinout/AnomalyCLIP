@@ -4,6 +4,7 @@ from pkg_resources import packaging
 import torch
 import numpy as np
 from AnomalyCLIP_lib.simple_tokenizer import SimpleTokenizer as _Tokenizer
+from collections import OrderedDict
 
 # from open_clip import tokenizer
 # simple_tokenizer = tokenizer.SimpleTokenizer()
@@ -141,7 +142,7 @@ def _get_clones(module, N):
 
 
 class AnomalyCLIP_PromptLearner(nn.Module):
-    def __init__(self, clip_model, design_details):
+    def __init__(self, clip_model, design_details, meta_net=False):
         super().__init__()
 
         """
@@ -164,6 +165,23 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
         dtype = clip_model.transformer.get_cast_dtype()
         ctx_dim = clip_model.ln_final.weight.shape[0]  # 768
+
+        """
+        meta_net
+        """
+        self.meta_net = meta_net
+        if meta_net:
+            vis_dim = clip_model.visual.output_dim  # 768
+
+            self.meta_net = nn.Sequential(
+                OrderedDict(
+                    [
+                        ("linear1", nn.Linear(vis_dim, vis_dim // 16)),
+                        ("relu", nn.ReLU(inplace=True)),
+                        ("linear2", nn.Linear(vis_dim // 16, ctx_dim)),
+                    ]
+                )
+            )
 
         """
         normal/abnormal templates
@@ -340,10 +358,20 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.register_buffer("tokenized_prompts_pos", tokenized_prompts_pos)
         self.register_buffer("tokenized_prompts_neg", tokenized_prompts_neg)
 
-    def forward(self, cls_id=None):
+    def forward(self, image_features=None, cls_id=None):
+        # image_features.shape: [bs, 768]
 
         ctx_pos = self.ctx_pos  # (1, 1, 12, 768)
         ctx_neg = self.ctx_neg
+
+        if self.meta_net:
+            bias = self.meta_net(
+                image_features
+            )  # [bs, ctx_dim], we set bs=1, ctx_dim=768
+            bias = bias.unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, ctx_dim)
+            # TODO: [later] would it be good to have separete meta_nets, one for pos, one for neg?
+            ctx_pos = ctx_pos + bias
+            ctx_neg = ctx_neg + bias
 
         prefix_pos = self.token_prefix_pos  # [1, 1, 1, 768]
         prefix_neg = self.token_prefix_neg  # [1, 1, 1, 768]

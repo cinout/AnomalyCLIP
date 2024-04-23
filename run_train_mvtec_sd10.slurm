@@ -11,7 +11,7 @@
 
 #SBATCH --job-name="tr_mv"
 #SBATCH --account=punim1623
-#SBATCH --time=0-02:30:00
+#SBATCH --time=0-08:30:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -33,19 +33,24 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
+### TODO: update batch_size (8), seed
+SEED=10
+
 python train.py \
   --dataset mvtec \
   --train_data_path data/mvtec \
   --features_list 6 12 18 24 \
   --image_size 518 \
-  --batch_size 8 \
+  --batch_size 1 \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec/ \
+  --save_path ./checkpoints/pretrained_mvtec_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
+  --meta_net \
+  --seed $SEED \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s

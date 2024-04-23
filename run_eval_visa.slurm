@@ -33,16 +33,21 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
+### TODO: update batch_size (8), seed
+SEED=10
+
 python test.py \
   --dataset visa \
   --data_path data/visa \
   --save_path ./results/visa/zero_shot \
-  --checkpoint_path ./checkpoints/pretrained_mvtec/epoch_15.pth \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
+  --meta_net \
+  --seed $SEED \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
