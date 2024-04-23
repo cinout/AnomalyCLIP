@@ -47,7 +47,6 @@ python test.py \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
-  --meta_net \
   --seed $SEED \
 
 ##Log this job's resource usage stats###

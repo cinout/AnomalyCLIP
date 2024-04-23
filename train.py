@@ -128,17 +128,24 @@ def train(args):
             #########################################################################
             similarity_map_list = []
 
-            for idx, patch_feature in enumerate(patch_features):
-                if idx >= args.feature_map_layer[0]:
+            for idx, patch_feature in enumerate(patch_features):  # 4*[bs, 1370, 768]
+                if idx >= args.feature_map_layer[0]:  # >=0
                     patch_feature = patch_feature / patch_feature.norm(
                         dim=-1, keepdim=True
-                    )
+                    )  # [bs, 1370, 768]
+
+                    # calculate patch-level similarity
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(
                         patch_feature, text_features[0]
-                    )
+                    )  # [bs, 1370, 2]
+
+                    # upsample anomaly map
                     similarity_map = AnomalyCLIP_lib.get_similarity_map(
                         similarity[:, 1:, :], args.image_size
-                    ).permute(0, 3, 1, 2)
+                    ).permute(
+                        0, 3, 1, 2
+                    )  # [bs, 2, 518, 518]
+
                     similarity_map_list.append(similarity_map)
 
             loss = 0
