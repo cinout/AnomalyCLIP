@@ -82,10 +82,10 @@ def test(args):
     metrics = {}
     for obj in obj_list:
         results[obj] = {}
-        results[obj]["gt_sp"] = []
-        results[obj]["pr_sp"] = []
-        results[obj]["imgs_masks"] = []
-        results[obj]["anomaly_maps"] = []
+        results[obj]["gt_sp"] = []  # gt: ground-truth, sp: sample-level
+        results[obj]["pr_sp"] = []  # pr: predicted, sp: sample-level
+        results[obj]["imgs_masks"] = []  # ground-truth, pixel-level
+        results[obj]["anomaly_maps"] = []  # predicted, pixel-level
         metrics[obj] = {}
         metrics[obj]["pixel-auroc"] = 0
         metrics[obj]["pixel-aupro"] = 0
@@ -95,7 +95,7 @@ def test(args):
     prompt_learner = AnomalyCLIP_PromptLearner(
         model.to("cpu"), AnomalyCLIP_parameters, meta_net=args.meta_net
     )
-    checkpoint = torch.load(args.checkpoint_path)
+    checkpoint = torch.load(args.checkpoint_path, map_location=device)
     prompt_learner.load_state_dict(checkpoint["prompt_learner"])
     prompt_learner.to(device)
     model.to(device)
@@ -128,6 +128,8 @@ def test(args):
             text_probs = image_features @ text_features.permute(0, 2, 1)
             text_probs = (text_probs / 0.07).softmax(-1)
             text_probs = text_probs[:, 0, 1]
+            results[cls_name[0]]["pr_sp"].extend(text_probs.detach().cpu())
+
             anomaly_map_list = []
             for idx, patch_feature in enumerate(patch_features):
                 if idx >= args.feature_map_layer[0]:
@@ -139,25 +141,31 @@ def test(args):
                     )
                     similarity_map = AnomalyCLIP_lib.get_similarity_map(
                         similarity[:, 1:, :], args.image_size
-                    )
+                    )  # [1, 518, 518, 2]
+
                     anomaly_map = (
                         similarity_map[..., 1] + 1 - similarity_map[..., 0]
                     ) / 2.0
                     anomaly_map_list.append(anomaly_map)
 
-            anomaly_map = torch.stack(anomaly_map_list)
-
-            anomaly_map = anomaly_map.sum(dim=0)
-            results[cls_name[0]]["pr_sp"].extend(text_probs.detach().cpu())
+            anomaly_map = torch.stack(anomaly_map_list)  # [4, 1, 518, 518]
+            anomaly_map = anomaly_map.sum(dim=0)  # [1, 518, 518]
             anomaly_map = torch.stack(
                 [
                     torch.from_numpy(gaussian_filter(i, sigma=args.sigma))
                     for i in anomaly_map.detach().cpu()
                 ],
                 dim=0,
-            )
+            )  # [1, 518, 518]
+
             results[cls_name[0]]["anomaly_maps"].append(anomaly_map)
-            # visualizer(items['img_path'], anomaly_map.detach().cpu().numpy(), args.image_size, args.save_path, cls_name)
+            visualizer(
+                items["img_path"],
+                anomaly_map.detach().cpu().numpy(),
+                args.image_size,
+                args.save_path,
+                cls_name,
+            )
 
     table_ls = []
     image_auroc_list = []
@@ -290,6 +298,8 @@ if __name__ == "__main__":
     parser.add_argument("--meta_net", action="store_true")
 
     args = parser.parse_args()
-    print(args)
+    print(
+        "\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items()))
+    )
     setup_seed(args.seed)
     test(args)
