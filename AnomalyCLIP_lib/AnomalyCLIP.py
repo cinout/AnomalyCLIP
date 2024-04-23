@@ -660,7 +660,8 @@ class AnomalyCLIP(nn.Module):
         DPAM_layer=None,
         ffn=False,
     ):
-        # return shape: global:[8, 768], local=4*[8, 1370, 768]
+        # return shape: global:[8, 768], local=4*[8, 1370=1+37*37, 768]
+        # how is the global obtained?: x_ori[0, :, :] @ self.proj
         return self.visual(
             image.type(self.dtype),
             feature_list,

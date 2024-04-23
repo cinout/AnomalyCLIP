@@ -87,6 +87,7 @@ def train(args):
                 # DPAM_layer = 1, no DPAM is used
                 # DPAM_layer = 20 as default
 
+                # TODO: can i incorporate patch_features in the text embedding?
                 image_features, patch_features = model.encode_image(
                     image, args.features_list, DPAM_layer=20
                 )
@@ -126,7 +127,7 @@ def train(args):
 
             #########################################################################
             similarity_map_list = []
-            # similarity_map_list.append(similarity_map)
+
             for idx, patch_feature in enumerate(patch_features):
                 if idx >= args.feature_map_layer[0]:
                     patch_feature = patch_feature / patch_feature.norm(
