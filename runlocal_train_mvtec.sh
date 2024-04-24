@@ -5,7 +5,7 @@ python train.py \
   --train_data_path data/mvtec \
   --features_list 6 12 18 24 \
   --image_size 518 \
-  --batch_size 1 \
+  --batch_size 8 \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \

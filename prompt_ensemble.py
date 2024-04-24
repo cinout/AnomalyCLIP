@@ -365,9 +365,8 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         ctx_neg = self.ctx_neg
 
         if self.meta_net:
-            bias = self.meta_net(
-                image_features
-            )  # [bs, ctx_dim], we set bs=1, ctx_dim=768
+            bias = self.meta_net(image_features)  # [bs, ctx_dim], ctx_dim=768
+            bias = torch.mean(bias, dim=0, keepdim=True)
             bias = bias.unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, ctx_dim)
             # TODO: [later] would it be good to have separete meta_nets, one for pos, one for neg?
             ctx_pos = ctx_pos + bias
