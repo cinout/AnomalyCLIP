@@ -159,13 +159,14 @@ def test(args):
             )  # [1, 518, 518]
 
             results[cls_name[0]]["anomaly_maps"].append(anomaly_map)
-            visualizer(
-                items["img_path"],
-                anomaly_map.detach().cpu().numpy(),
-                args.image_size,
-                args.save_path,
-                cls_name,
-            )
+            if args.seed == 10:
+                visualizer(
+                    items["img_path"],
+                    anomaly_map.detach().cpu().numpy(),
+                    args.image_size,
+                    args.save_path,
+                    cls_name,
+                )
 
     table_ls = []
     image_auroc_list = []
