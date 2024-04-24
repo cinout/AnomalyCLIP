@@ -2,12 +2,13 @@ import cv2
 import os
 from utils import normalize
 import numpy as np
+import torch
 
 
-def visualizer(pathes, anomaly_map, img_size, save_path, cls_name):
+def visualizer(pathes, anomaly_map, img_size, save_path, cls_name, gt_mask):
     for idx, path in enumerate(pathes):
-        cls = path.split("/")[-2]
-        filename = path.split("/")[-1]
+        cls = path.split("/")[-2]  # Normal
+        filename = path.split("/")[-1]  # 0790.JPG
         vis = cv2.cvtColor(
             cv2.resize(cv2.imread(path), (img_size, img_size)), cv2.COLOR_BGR2RGB
         )  # RGB
@@ -18,6 +19,15 @@ def visualizer(pathes, anomaly_map, img_size, save_path, cls_name):
         if not os.path.exists(save_vis):
             os.makedirs(save_vis)
         cv2.imwrite(os.path.join(save_vis, filename), vis)
+
+        # generate GT masks
+        if cls not in ["Normal", "good"]:
+            gt_mask = gt_mask[idx]  # [1, h, w]
+            gt_mask = torch.permute(gt_mask, (1, 2, 0))
+            gt_mask = (gt_mask * 255).numpy().astype(np.uint8)
+            cv2.imwrite(
+                os.path.join(save_vis, filename.split(".")[-2] + "_gt.JPG"), gt_mask
+            )
 
 
 def apply_ad_scoremap(image, scoremap, alpha=0.5):

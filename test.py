@@ -159,6 +159,7 @@ def test(args):
             )  # [1, 518, 518]
 
             results[cls_name[0]]["anomaly_maps"].append(anomaly_map)
+
             if args.seed == 10:
                 visualizer(
                     items["img_path"],
@@ -166,6 +167,7 @@ def test(args):
                     args.image_size,
                     args.save_path,
                     cls_name,
+                    gt_mask,
                 )
 
     table_ls = []
