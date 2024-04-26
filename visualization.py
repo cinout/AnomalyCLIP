@@ -21,13 +21,13 @@ def visualizer(pathes, anomaly_map, img_size, save_path, cls_name, gt_mask):
         cv2.imwrite(os.path.join(save_vis, filename), vis)
 
         # generate GT masks
-        if cls not in ["Normal", "good"]:
-            gt_mask = gt_mask[idx]  # [1, h, w]
-            gt_mask = torch.permute(gt_mask, (1, 2, 0))
-            gt_mask = (gt_mask * 255).numpy().astype(np.uint8)
-            cv2.imwrite(
-                os.path.join(save_vis, filename.split(".")[-2] + "_gt.JPG"), gt_mask
-            )
+        # if cls not in ["Normal", "good"]:
+        #     gt_mask = gt_mask[idx]  # [1, h, w]
+        #     gt_mask = torch.permute(gt_mask, (1, 2, 0))
+        #     gt_mask = (gt_mask * 255).numpy().astype(np.uint8)
+        #     cv2.imwrite(
+        #         os.path.join(save_vis, filename.split(".")[-2] + "_gt.JPG"), gt_mask
+        #     )
 
 
 def apply_ad_scoremap(image, scoremap, alpha=0.5):
