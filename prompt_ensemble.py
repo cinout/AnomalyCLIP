@@ -364,57 +364,96 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         ctx_pos = self.ctx_pos  # (1, 1, 12, 768)
         ctx_neg = self.ctx_neg
 
-        if self.meta_net:
-            bias = self.meta_net(image_features)  # [bs, ctx_dim], ctx_dim=768
-            bias = torch.mean(bias, dim=0, keepdim=True)
-            bias = bias.unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, ctx_dim)
-            # TODO: [later] would it be good to have separete meta_nets, one for pos, one for neg?
-            ctx_pos = ctx_pos + bias
-            ctx_neg = ctx_neg + bias
-
         prefix_pos = self.token_prefix_pos  # [1, 1, 1, 768]
         prefix_neg = self.token_prefix_neg  # [1, 1, 1, 768]
         suffix_pos = self.token_suffix_pos  # [1, 1, 64, 768]
         suffix_neg = self.token_suffix_neg  # [1, 1, 64, 768]
 
-        prompts_pos = torch.cat(
-            [
-                # N(the number of template), 1, dim
-                prefix_pos,  # (n_cls, 1, dim)
-                ctx_pos,  # (n_cls, n_ctx, dim)
-                suffix_pos,  # (n_cls, *, dim)
-            ],
-            dim=2,
-        )  # [1, 1, 77, 768]
-
-        prompts_neg = torch.cat(
-            [
-                prefix_neg,  # (n_cls, 1, dim)
-                ctx_neg,  # (n_cls, n_ctx, dim)
-                suffix_neg,  # (n_cls, *, dim)
-            ],
-            dim=2,
-        )  # [1, 1, 77, 768]
-
-        _, _, l, d = prompts_pos.shape
-        prompts_pos = prompts_pos.reshape(-1, l, d)
-        _, _, l, d = prompts_neg.shape
-        prompts_neg = prompts_neg.reshape(-1, l, d)
-
-        prompts = torch.cat([prompts_pos, prompts_neg], dim=0)  # [2, 77, 768]
-
         _, l, d = self.tokenized_prompts_pos.shape
-        tokenized_prompts_pos = self.tokenized_prompts_pos.reshape(-1, d)
+        tokenized_prompts_pos = self.tokenized_prompts_pos.reshape(-1, d)  # [1, 77]
         _, l, d = self.tokenized_prompts_neg.shape
-        tokenized_prompts_neg = self.tokenized_prompts_neg.reshape(-1, d)
+        tokenized_prompts_neg = self.tokenized_prompts_neg.reshape(-1, d)  # [1, 77]
 
-        tokenized_prompts = torch.cat(
-            (tokenized_prompts_pos, tokenized_prompts_neg), dim=0
-        )  # [2, 77]
+        if self.meta_net:
+            bias = self.meta_net(image_features)  # [bs, ctx_dim], ctx_dim=768
+            bs, _ = bias.shape
+
+            ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)
+            ctx_neg = ctx_neg.unsqueeze(0)
+
+            bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
+
+            ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
+            ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
+
+            prefix_shape = prefix_pos.shape
+            suffix_shape = suffix_pos.shape
+
+            prompts_pos = torch.cat(
+                [
+                    prefix_pos.unsqueeze(0).expand((bs, *prefix_shape)),
+                    ctx_pos,
+                    suffix_pos.unsqueeze(0).expand((bs, *suffix_shape)),
+                ],
+                dim=3,
+            )  # [bs, 1, 1, 77, 768]
+
+            prompts_neg = torch.cat(
+                [
+                    prefix_neg.unsqueeze(0).expand((bs, *prefix_shape)),
+                    ctx_neg,
+                    suffix_neg.unsqueeze(0).expand((bs, *suffix_shape)),
+                ],
+                dim=3,
+            )  # [bs, 1, 1, 77, 768]
+
+            _, _, _, l, d = prompts_pos.shape
+            prompts_pos = prompts_pos.reshape(-1, l, d)  # [bs, 77, 768]
+            _, _, _, l, d = prompts_neg.shape
+            prompts_neg = prompts_neg.reshape(-1, l, d)
+
+            tokenized_prompts = torch.cat(
+                (
+                    tokenized_prompts_pos.expand((bs, -1)),
+                    tokenized_prompts_neg.expand((bs, -1)),
+                ),
+                dim=0,
+            )  # [2 or 2*bs, 77]
+
+        else:
+            prompts_pos = torch.cat(
+                [
+                    # N(the number of template), 1, dim
+                    prefix_pos,  # (n_cls, 1, dim)
+                    ctx_pos,  # (n_cls, n_ctx, dim)
+                    suffix_pos,  # (n_cls, *, dim)
+                ],
+                dim=2,
+            )  # [1, 1, 77, 768]
+
+            prompts_neg = torch.cat(
+                [
+                    prefix_neg,  # (n_cls, 1, dim)
+                    ctx_neg,  # (n_cls, n_ctx, dim)
+                    suffix_neg,  # (n_cls, *, dim)
+                ],
+                dim=2,
+            )  # [1, 1, 77, 768]
+
+            _, _, l, d = prompts_pos.shape
+            prompts_pos = prompts_pos.reshape(-1, l, d)
+            _, _, l, d = prompts_neg.shape
+            prompts_neg = prompts_neg.reshape(-1, l, d)
+
+            tokenized_prompts = torch.cat(
+                (tokenized_prompts_pos, tokenized_prompts_neg), dim=0
+            )  # [2, 77]
+
+        prompts = torch.cat([prompts_pos, prompts_neg], dim=0)  # [2 or 2*bs, 77, 768]
 
         """
-        prompts: [2, 77, 768], 2 is pos&neg, embeddings with 12 Xs replaced already
-        tokenized_prompts: [2, 77], prompts are tokenized, but not clip_model.token_embedding, with 12 Xs included
+        prompts: [2 or 2*bs, 77, 768], 2 is pos&neg, embeddings with 12 Xs replaced already
+        tokenized_prompts: [2 or 2*bs, 77], prompts are tokenized, but not clip_model.token_embedding, with 12 Xs included
         learnable token/text embeddings: [4, 768] * 8
         """
         return prompts, tokenized_prompts, self.compound_prompts_text

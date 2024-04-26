@@ -42,7 +42,7 @@ def generate_text_features(prompt_learner, model, image_features=None):
     text_features = torch.stack(torch.chunk(text_features, dim=0, chunks=2), dim=1)
     text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
-    return text_features
+    return text_features  # [1 or bs, 2, 768]
 
 
 def test(args):
@@ -137,7 +137,7 @@ def test(args):
                         dim=-1, keepdim=True
                     )
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(
-                        patch_feature, text_features[0]
+                        patch_feature, text_features
                     )
                     similarity_map = AnomalyCLIP_lib.get_similarity_map(
                         similarity[:, 1:, :], args.image_size

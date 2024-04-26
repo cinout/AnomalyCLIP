@@ -290,9 +290,9 @@ class ResidualAttentionBlock_learnable_token(nn.Module):
         else:
             # ARRIVED HERE
             # this is where text transformer works
-            x = inputs[0]  # [77, 2, 768]
+            x = inputs[0]  # [77, 2 or 2*bs, 768]
 
-            compound_prompts_deeper = inputs[1]
+            compound_prompts_deeper = inputs[1]  #  [4, 768] * 8
             counter = inputs[2]  # 0,0,1,2...,8,8,8
 
             if not self.first_layer:
@@ -305,12 +305,12 @@ class ResidualAttentionBlock_learnable_token(nn.Module):
                     suffix = x[1 + self.compound_prompt_nctx :, :, :]
 
                     # then create the new learnable tokens
-                    textual_context = compound_prompts_deeper[counter]
+                    textual_context = compound_prompts_deeper[counter]  #  [4, 768]
                     textual_context = (
                         textual_context.expand(x.shape[1], -1, -1)
                         .permute(1, 0, 2)
                         .half()
-                    )
+                    )  # [4, 2 or 2*bs, 768]
 
                     # Add the learnable tokens of this layer to the input
                     x = torch.cat([prefix, textual_context, suffix], dim=0)
@@ -696,25 +696,28 @@ class AnomalyCLIP(nn.Module):
     ):
         cast_dtype = self.transformer.get_cast_dtype()
 
-        x = prompts + self.positional_embedding.to(cast_dtype)  # [2, 77, 768]
+        x = prompts + self.positional_embedding.to(cast_dtype)  # [2 or 2*bs, 77, 768]
         x = x.permute(1, 0, 2)  # NLD -> LND  [77, 2, 768]
 
         if deep_compound_prompts_text is None:
             x = self.transformer(x)
         else:
-            x = self.transformer([x, deep_compound_prompts_text, 0])  # [77, 2, 768]
+            x = self.transformer(
+                [x, deep_compound_prompts_text, 0]
+            )  # [77, 2 or 2*bs, 768]
 
         x = x.permute(1, 0, 2)  # LND -> NLD, [2, 77, 768]
         x = self.ln_final(x).type(
             self.dtype
-        )  # [batch_size, n_ctx, transformer.width], [2, 77, 768]
+        )  # [batch_size, n_ctx, transformer.width], [2 or 2*bs, 77, 768]
 
         # take features from the eot embedding (eot_token is the highest number in each sequence)
         # the argmax operation takes the representation at the EOT (end of text) position. There's nothing inherently wrong with taking the average along the sequence dimension, but taking representation at the position of a special token (e.g. the CLS token in ViT and BERT) is empirically known to work better. Other representations are still used since in each attention layer, the [EOT] token is attended to every other location. Argmax is used to locate the index (i_eot) of [EOT] at tokenized prompts. Once we locate it , we use the features of [EOT] by x[batchsize, i_eot] to represent the features of prompts
+
         x = (
             x[torch.arange(x.shape[0]), tokenized_prompts.argmax(dim=-1)]
             @ self.text_projection
-        )  # [2. 768]
+        )  # [2 or 2*bs, 768]
 
         return x
 

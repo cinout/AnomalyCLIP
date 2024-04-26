@@ -1,3 +1,22 @@
+import torch
+
+
+image_features = torch.randint(0, 5, size=(1, 4, 6))
+image_features = image_features.expand(5, -1, -1)
+print(image_features.shape)
+print(image_features)
+
+# text_features = torch.randint(0, 5, size=(1, 4, 4))
+# print(image_features)
+# print("---------")
+# print(text_features)
+# print("---------")
+# whatsi = image_features * text_features
+
+# print(whatsi)
+# print(whatsi.shape)
+
+
 AnomalyCLIP_keys = [
     "positional_embedding",
     "text_projection",

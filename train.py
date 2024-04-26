@@ -87,7 +87,6 @@ def train(args):
                 # DPAM_layer = 1, no DPAM is used
                 # DPAM_layer = 20 as default
 
-                # TODO: can i incorporate patch_features in the text embedding?
                 image_features, patch_features = model.encode_image(
                     image, args.features_list, DPAM_layer=20
                 )
@@ -96,19 +95,21 @@ def train(args):
                 )  # [8, 768]
 
             ####################################
+
             prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
                 image_features=image_features, cls_id=None
             )
             text_features = model.encode_text_learn(
                 prompts, tokenized_prompts, compound_prompts_text
-            ).float()  # [2, 768]
+            ).float()  # [2 or 2*bs, 768]
+
             text_features = torch.stack(
                 torch.chunk(text_features, dim=0, chunks=2), dim=1
-            )  # [1, 2, 768]
+            )  # [1 or bs, 2, 768]
 
             text_features = text_features / text_features.norm(
                 dim=-1, keepdim=True
-            )  # [1, 2, 768]
+            )  # [1 or bs, 2, 768]
 
             # Apply DPAM surgery
             text_probs = image_features.unsqueeze(1) @ text_features.permute(
@@ -136,7 +137,7 @@ def train(args):
 
                     # calculate patch-level similarity
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(
-                        patch_feature, text_features[0]
+                        patch_feature, text_features
                     )  # [bs, 1370, 2]
 
                     # upsample anomaly map

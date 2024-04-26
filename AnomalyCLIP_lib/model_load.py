@@ -281,18 +281,19 @@ def get_similarity_map(sm, shape):
 
 def compute_similarity(image_features, text_features, t=2):
     # image_features: [bs, 1370, 768]
-    # text_features: [2, 768]
+    # text_features: [1 or bs, 2, 768]
 
-    prob_1 = image_features[:, :1, :] @ text_features.t()  # NOT USED
+    # prob_1 = image_features[:, :1, :] @ text_features.t()  # NOT USED
 
-    b, n_t, n_i, c = (
+    b_im, b_tx, n_t, n_i, c = (
         image_features.shape[0],  # bs
-        text_features.shape[0],  # 2
+        text_features.shape[0],  # 1 or bs
+        text_features.shape[1],  # 2
         image_features.shape[1],  # 1370
         image_features.shape[2],  # 768
     )
-    feats = image_features.reshape(b, n_i, 1, c) * text_features.reshape(
-        1, 1, n_t, c
-    )  # [1, 1370, 2, 768]
-    similarity = feats.sum(-1)  # [1, 1370, 2]
-    return (similarity / 0.07).softmax(-1), prob_1
+    feats = image_features.reshape(b_im, n_i, 1, c) * text_features.reshape(
+        b_tx, 1, n_t, c
+    )  # [bs, 1370, 2, 768]
+    similarity = feats.sum(-1)  # [bs, 1370, 2]
+    return (similarity / 0.07).softmax(-1), None
