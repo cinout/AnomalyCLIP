@@ -49,6 +49,7 @@ python test.py \
   --t_n_ctx 4 \
   --meta_net \
   --meta_split \
+  --morep \
   --seed $SEED \
 
 ##Log this job's resource usage stats###
