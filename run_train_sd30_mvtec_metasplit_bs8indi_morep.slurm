@@ -44,7 +44,7 @@ python train.py \
   --image_size 518 \
   --batch_size 8 \
   --print_freq 1 \
-  --epoch 30 \
+  --epoch 15 \
   --save_freq 1 \
   --save_path ./checkpoints/pretrained_mvtec_metasplit_bs8indi_morep_$SEED/ \
   --depth 9 \
