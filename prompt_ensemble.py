@@ -151,6 +151,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.meta_net = args.meta_net
         self.meta_split = args.meta_split
         self.morep = args.morep
+        self.metanet_patch_feature = args.metanet_patch_feature
 
         """
         Unused
@@ -391,8 +392,9 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.register_buffer("tokenized_prompts_pos", tokenized_prompts_pos)
         self.register_buffer("tokenized_prompts_neg", tokenized_prompts_neg)
 
-    def forward(self, image_features=None, cls_id=None):
+    def forward(self, image_features=None, patch_features=None, cls_id=None):
         # image_features.shape: [bs, 768]
+        # patch_features: 4*[bs, 1370, 768]
 
         ctx_pos = self.ctx_pos  # (1, 1, 12, 768)
         ctx_neg = self.ctx_neg
@@ -408,9 +410,19 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         tokenized_prompts_neg = self.tokenized_prompts_neg.reshape(-1, d)  # [1, 77]
 
         if self.meta_net:
-            bias = self.meta_net(
-                image_features
-            )  # [bs, ctx_dim or ctx_dim*2], ctx_dim=768
+            if self.metanet_patch_feature:
+                # TODO: patch_features
+                patch_features = [
+                    torch.mean(feature[:, 1:, :], dim=1) for feature in patch_features
+                ]  # 4*[bs, 768]
+                patch_features = torch.stack(patch_features, dim=1)  # [bs, 4, 768]
+                patch_features = torch.mean(patch_features, dim=1)  # [bs, 768]
+                bias = self.meta_net(image_features + patch_features)
+            else:
+                bias = self.meta_net(
+                    image_features
+                )  # [bs, ctx_dim or ctx_dim*2], ctx_dim=768
+
             bs, _ = bias.shape
 
             ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)

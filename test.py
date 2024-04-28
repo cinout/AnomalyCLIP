@@ -32,9 +32,11 @@ from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
 
 
-def generate_text_features(prompt_learner, model, image_features=None):
+def generate_text_features(
+    prompt_learner, model, image_features=None, patch_features=None
+):
     prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
-        image_features=image_features
+        image_features=image_features, patch_features=patch_features
     )
     text_features = model.encode_text_learn(
         prompts, tokenized_prompts, compound_prompts_text
@@ -122,7 +124,7 @@ def test(args):
 
             if args.meta_net:
                 text_features = generate_text_features(
-                    prompt_learner, model, image_features
+                    prompt_learner, model, image_features, patch_features
                 )
 
             text_probs = image_features @ text_features.permute(0, 2, 1)
@@ -306,6 +308,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--morep", action="store_true", help="more parameters in meta_net"
+    )
+    parser.add_argument(
+        "--metanet_patch_feature",
+        action="store_true",
+        help="use patch features in meta_net",
     )
 
     args = parser.parse_args()

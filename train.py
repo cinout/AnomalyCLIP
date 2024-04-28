@@ -97,7 +97,9 @@ def train(args):
             ####################################
 
             prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
-                image_features=image_features, cls_id=None
+                image_features=image_features,
+                patch_features=patch_features,
+                cls_id=None,
             )
             text_features = model.encode_text_learn(
                 prompts, tokenized_prompts, compound_prompts_text
@@ -238,6 +240,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--morep", action="store_true", help="more parameters in meta_net"
+    )
+    parser.add_argument(
+        "--metanet_patch_feature",
+        action="store_true",
+        help="use patch features in meta_net",
     )
     args = parser.parse_args()
     print(
