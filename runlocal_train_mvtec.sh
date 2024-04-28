@@ -15,4 +15,5 @@ python train.py \
   --t_n_ctx 4 \
   --meta_net \
   --meta_split \
+  --morep \
   --seed $SEED \

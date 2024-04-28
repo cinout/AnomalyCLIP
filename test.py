@@ -299,7 +299,14 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=111, help="random seed")
     parser.add_argument("--sigma", type=int, default=4, help="zero shot")
     parser.add_argument("--meta_net", action="store_true")
-    parser.add_argument("--meta_split", action="store_true")
+    parser.add_argument(
+        "--meta_split",
+        action="store_true",
+        help="double the output dim, and divide into halves",
+    )
+    parser.add_argument(
+        "--morep", action="store_true", help="more parameters in meta_net"
+    )
 
     args = parser.parse_args()
     print(

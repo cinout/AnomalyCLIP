@@ -150,6 +150,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         """
         self.meta_net = args.meta_net
         self.meta_split = args.meta_split
+        self.morep = args.morep
 
         """
         Unused
@@ -180,23 +181,40 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         if self.meta_net:
             vis_dim = clip_model.visual.output_dim  # 768
 
-            # TODO: update for meta_split
-
-            self.meta_net = nn.Sequential(
-                OrderedDict(
-                    [
-                        ("linear1", nn.Linear(vis_dim, vis_dim // 16)),
-                        ("relu", nn.ReLU(inplace=True)),
-                        (
-                            "linear2",
-                            nn.Linear(
-                                vis_dim // 16,
-                                ctx_dim * 2 if self.meta_split else ctx_dim,
+            if self.morep:
+                self.meta_net = nn.Sequential(
+                    OrderedDict(
+                        [
+                            ("linear1", nn.Linear(vis_dim, vis_dim // 16)),
+                            ("relu", nn.ReLU(inplace=True)),
+                            ("linear2", nn.Linear(vis_dim // 16, vis_dim // 16)),
+                            ("relu", nn.ReLU(inplace=True)),
+                            (
+                                "linear3",
+                                nn.Linear(
+                                    vis_dim // 16,
+                                    ctx_dim * 2 if self.meta_split else ctx_dim,
+                                ),
                             ),
-                        ),
-                    ]
+                        ]
+                    )
                 )
-            )
+            else:
+                self.meta_net = nn.Sequential(
+                    OrderedDict(
+                        [
+                            ("linear1", nn.Linear(vis_dim, vis_dim // 16)),
+                            ("relu", nn.ReLU(inplace=True)),
+                            (
+                                "linear2",
+                                nn.Linear(
+                                    vis_dim // 16,
+                                    ctx_dim * 2 if self.meta_split else ctx_dim,
+                                ),
+                            ),
+                        ]
+                    )
+                )
 
         """
         normal/abnormal templates
