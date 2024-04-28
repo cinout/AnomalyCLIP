@@ -46,11 +46,12 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec_meta_net_bs8indi_$SEED/ \
+  --save_path ./checkpoints/pretrained_mvtec_metasplit_bs8indi_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
   --meta_net \
+  --meta_split \
   --seed $SEED \
 
 ##Log this job's resource usage stats###

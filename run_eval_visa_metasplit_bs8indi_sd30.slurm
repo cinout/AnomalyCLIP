@@ -33,21 +33,22 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=10
+SEED=30
 
 # FIXME: update save_path, checkpoint_path
 
 python test.py \
   --dataset visa \
   --data_path data/visa \
-  --save_path ./results/visa/0shot_meta_net_bs8indi_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_meta_net_bs8indi_$SEED/epoch_15.pth \
+  --save_path ./results/visa/0shot_metasplit_bs8indi_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metasplit_bs8indi_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
   --meta_net \
+  --meta_split \
   --seed $SEED \
 
 ##Log this job's resource usage stats###

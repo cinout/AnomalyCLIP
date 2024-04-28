@@ -2,9 +2,11 @@ import torch
 
 
 image_features = torch.randint(0, 5, size=(1, 4, 6))
-image_features = image_features.expand(5, -1, -1)
-print(image_features.shape)
 print(image_features)
+image_features = image_features[..., 3:]
+print(image_features)
+print(image_features.shape)
+
 
 # text_features = torch.randint(0, 5, size=(1, 4, 4))
 # print(image_features)

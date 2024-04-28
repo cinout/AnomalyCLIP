@@ -53,7 +53,7 @@ def train(args):
 
     ##########################################################################################
     prompt_learner = AnomalyCLIP_PromptLearner(
-        model.to("cpu"), AnomalyCLIP_parameters, meta_net=args.meta_net
+        model.to("cpu"), AnomalyCLIP_parameters, args=args
     )
     prompt_learner.to(device)
     model.to(device)
@@ -231,6 +231,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_freq", type=int, default=1, help="save frequency")
     parser.add_argument("--seed", type=int, default=111, help="random seed")
     parser.add_argument("--meta_net", action="store_true")
+    parser.add_argument("--meta_split", action="store_true")
     args = parser.parse_args()
     print(
         "\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items()))

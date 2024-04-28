@@ -142,8 +142,14 @@ def _get_clones(module, N):
 
 
 class AnomalyCLIP_PromptLearner(nn.Module):
-    def __init__(self, clip_model, design_details, meta_net=False):
+    def __init__(self, clip_model, design_details, args):
         super().__init__()
+
+        """
+        configs
+        """
+        self.meta_net = args.meta_net
+        self.meta_split = args.meta_split
 
         """
         Unused
@@ -165,20 +171,29 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
         dtype = clip_model.transformer.get_cast_dtype()
         ctx_dim = clip_model.ln_final.weight.shape[0]  # 768
+        self.ctx_dim = ctx_dim
 
         """
         meta_net
         """
-        self.meta_net = meta_net
-        if meta_net:
+
+        if self.meta_net:
             vis_dim = clip_model.visual.output_dim  # 768
+
+            # TODO: update for meta_split
 
             self.meta_net = nn.Sequential(
                 OrderedDict(
                     [
                         ("linear1", nn.Linear(vis_dim, vis_dim // 16)),
                         ("relu", nn.ReLU(inplace=True)),
-                        ("linear2", nn.Linear(vis_dim // 16, ctx_dim)),
+                        (
+                            "linear2",
+                            nn.Linear(
+                                vis_dim // 16,
+                                ctx_dim * 2 if self.meta_split else ctx_dim,
+                            ),
+                        ),
                     ]
                 )
             )
@@ -375,7 +390,9 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         tokenized_prompts_neg = self.tokenized_prompts_neg.reshape(-1, d)  # [1, 77]
 
         if self.meta_net:
-            bias = self.meta_net(image_features)  # [bs, ctx_dim], ctx_dim=768
+            bias = self.meta_net(
+                image_features
+            )  # [bs, ctx_dim or ctx_dim*2], ctx_dim=768
             bs, _ = bias.shape
 
             ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)
@@ -383,8 +400,12 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
             bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
 
-            ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
-            ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
+            if self.meta_split:
+                ctx_pos = ctx_pos + bias[..., : self.ctx_dim]  # (bs, 1, 1, 12, 768)
+                ctx_neg = ctx_neg + bias[..., self.ctx_dim :]  # (bs, 1, 1, 12, 768)
+            else:
+                ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
+                ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
 
             prefix_shape = prefix_pos.shape
             suffix_shape = suffix_pos.shape
