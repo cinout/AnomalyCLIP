@@ -19,6 +19,11 @@ runs*/
 data/loco
 data/mvtec
 data/visa
+data/mpdd
+data/btad
+data/sdd
+data/dagm
+data/dtd
 output*/
 .DS_Store
 .DS_store
