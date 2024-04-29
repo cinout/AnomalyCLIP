@@ -46,13 +46,12 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec_meta_net_bs8mean_patch_$SEED/ \
+  --save_path ./checkpoints/pretrained_mvtec_meta_net_bs8indi_patchonly_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
   --meta_net \
-  --meta_mean \
-  --metanet_patch_feature \
+  --metanet_patch_only \
   --seed $SEED \
 
 ##Log this job's resource usage stats###

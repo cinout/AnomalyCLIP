@@ -311,9 +311,14 @@ if __name__ == "__main__":
         "--morep", action="store_true", help="more parameters in meta_net"
     )
     parser.add_argument(
-        "--metanet_patch_feature",
+        "--metanet_patch_and_image",
         action="store_true",
-        help="use patch features in meta_net",
+        help="use patch+image features in meta_net",
+    )
+    parser.add_argument(
+        "--metanet_patch_only",
+        action="store_true",
+        help="use patch features only in meta_net",
     )
 
     args = parser.parse_args()

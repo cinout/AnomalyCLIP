@@ -149,10 +149,11 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         configs
         """
         self.meta_net = args.meta_net
-        self.meta_mean = args.meta_mean
+        # self.meta_mean = args.meta_mean
         self.meta_split = args.meta_split
         self.morep = args.morep
-        self.metanet_patch_feature = args.metanet_patch_feature
+        self.metanet_patch_and_image = args.metanet_patch_and_image
+        self.metanet_patch_only = args.metanet_patch_only
 
         """
         Unused
@@ -411,7 +412,14 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         tokenized_prompts_neg = self.tokenized_prompts_neg.reshape(-1, d)  # [1, 77]
 
         if self.meta_net:
-            if self.metanet_patch_feature:
+            if self.metanet_patch_only:
+                patch_features = [
+                    torch.mean(feature[:, 1:, :], dim=1) for feature in patch_features
+                ]  # 4*[bs, 768]
+                patch_features = torch.stack(patch_features, dim=1)  # [bs, 4, 768]
+                patch_features = torch.mean(patch_features, dim=1)  # [bs, 768]
+                bias = self.meta_net(patch_features)
+            elif self.metanet_patch_and_image:
                 patch_features = [
                     torch.mean(feature[:, 1:, :], dim=1) for feature in patch_features
                 ]  # 4*[bs, 768]
@@ -425,18 +433,16 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
             bs, _ = bias.shape
 
-            # TODO: improve
-            if self.meta_mean:
-                bs = 1
+            # if self.meta_mean:
+            #     bs = 1
 
             ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)
             ctx_neg = ctx_neg.unsqueeze(0)
 
             bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
 
-            # TODO: improve
-            if self.meta_mean:
-                bias = torch.mean(bias, dim=0, keepdim=True)
+            # if self.meta_mean:
+            #     bias = torch.mean(bias, dim=0, keepdim=True)
 
             if self.meta_split:
                 ctx_pos = ctx_pos + bias[..., : self.ctx_dim]  # (bs, 1, 1, 12, 768)
