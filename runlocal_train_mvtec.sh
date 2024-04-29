@@ -14,5 +14,5 @@ python train.py \
   --n_ctx 12\
   --t_n_ctx 4 \
   --meta_net \
-  --metanet_patch_feature \
   --seed $SEED \
+  # --metanet_patch_feature \
