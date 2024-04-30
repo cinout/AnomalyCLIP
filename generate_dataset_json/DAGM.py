@@ -22,7 +22,8 @@ class DAGMSolver(object):
         self.meta_path = f"{root}/meta.json"
 
     def run(self):
-        info = dict(Train={}, Test={})
+        # info = dict(Train={}, Test={})
+        info = dict(train={}, test={})  # change to lower case
         anomaly_samples = 0
         normal_samples = 0
         for cls_name in self.CLSNAMES:
@@ -69,7 +70,7 @@ class DAGMSolver(object):
                             anomaly_samples = anomaly_samples + 1
                         else:
                             normal_samples = normal_samples + 1
-                info[phase][cls_name] = cls_info
+                info[phase.lower()][cls_name] = cls_info
         with open(self.meta_path, "w") as f:
             f.write(json.dumps(info, indent=4) + "\n")
         print("normal_samples", normal_samples, "anomaly_samples", anomaly_samples)
