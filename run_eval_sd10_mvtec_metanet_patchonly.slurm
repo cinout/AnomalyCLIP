@@ -2,12 +2,12 @@
 
 ###SBATCH --partition=gpu-a100
 
-###SBATCH --partition=feit-gpu-a100
-###SBATCH --qos=feit
+#SBATCH --partition=feit-gpu-a100
+#SBATCH --qos=feit
 
-#SBATCH --partition=deeplearn
-#SBATCH --qos=gpgpudeeplearn
-#SBATCH --constraint=dlg4|dlg5
+###SBATCH --partition=deeplearn
+###SBATCH --qos=gpgpudeeplearn
+###SBATCH --constraint=dlg4|dlg5
 
 ### FIXME: update job-name
 #SBATCH --job-name="e_mvtec"
@@ -27,20 +27,22 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=20
+SEED=10
 
 # FIXME: update save_path, checkpoint_path
 
 python test.py \
   --dataset mvtec \
   --data_path data/mvtec \
-  --save_path ./results/mvtec/0shot_baseline_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_visa_baseline_$SEED/epoch_15.pth \
+  --save_path ./results/mvtec/0shot_metanet_patchonly_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_visa_metanet_patchonly_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
+  --meta_net \
+  --metanet_patch_only \
   --seed $SEED \
 
 ##Log this job's resource usage stats###
