@@ -33,7 +33,7 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=50
+SEED=30
 
 # FIXME: update save_path
 
@@ -46,12 +46,12 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_visa_metanet_patchandglobal_$SEED/ \
+  --save_path ./checkpoints/pretrained_visa_metanet_patchonly_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
   --meta_net \
-  --metanet_patch_and_global \
+  --metanet_patch_only \
   --seed $SEED \
 
 ##Log this job's resource usage stats###
