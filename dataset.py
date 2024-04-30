@@ -67,7 +67,8 @@ def generate_class_info(dataset_name):
             "Class10",
         ]
     elif dataset_name == "SDD":
-        obj_list = ["electrical commutators"]
+        obj_list = ["SDD"]
+        # obj_list = ["electrical commutators"]
     elif dataset_name == "DTD":
         obj_list = [
             "Woven_001",
