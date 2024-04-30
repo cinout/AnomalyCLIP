@@ -32,9 +32,9 @@ SEED=40
 # FIXME: update save_path, checkpoint_path
 
 python test.py \
-  --dataset btad \
-  --data_path data/btad \
-  --save_path ./results/btad/0shot_metanet_patchandglobal_$SEED \
+  --dataset sdd \
+  --data_path data/sdd \
+  --save_path ./results/sdd/0shot_metanet_patchandglobal_$SEED \
   --checkpoint_path ./checkpoints/pretrained_mvtec_metanet_patchandglobal_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
