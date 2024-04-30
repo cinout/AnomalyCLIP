@@ -4,7 +4,8 @@ import json
 
 class SDDSolver(object):
     CLSNAMES = [
-        "electrical commutators",
+        "SDD",
+        # "electrical commutators",
     ]
 
     def __init__(self, root="data/sdd"):
