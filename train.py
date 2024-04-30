@@ -243,7 +243,7 @@ if __name__ == "__main__":
         "--morep", action="store_true", help="more parameters in meta_net"
     )
     parser.add_argument(
-        "--metanet_patch_and_image",
+        "--metanet_patch_and_global",
         action="store_true",
         help="use patch+image features in meta_net",
     )

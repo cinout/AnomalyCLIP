@@ -152,7 +152,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         # self.meta_mean = args.meta_mean
         self.meta_split = args.meta_split
         self.morep = args.morep
-        self.metanet_patch_and_image = args.metanet_patch_and_image
+        self.metanet_patch_and_global = args.metanet_patch_and_global
         self.metanet_patch_only = args.metanet_patch_only
 
         """
@@ -419,7 +419,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                 patch_features = torch.stack(patch_features, dim=1)  # [bs, 4, 768]
                 patch_features = torch.mean(patch_features, dim=1)  # [bs, 768]
                 bias = self.meta_net(patch_features)
-            elif self.metanet_patch_and_image:
+            elif self.metanet_patch_and_global:
                 patch_features = [
                     torch.mean(feature[:, 1:, :], dim=1) for feature in patch_features
                 ]  # 4*[bs, 768]
