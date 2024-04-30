@@ -53,7 +53,7 @@ def generate_class_info(dataset_name):
         ]
     elif dataset_name == "btad":
         obj_list = ["01", "02", "03"]
-    elif dataset_name == "DAGM_KaggleUpload":
+    elif dataset_name == "dagm":
         obj_list = [
             "Class1",
             "Class2",
@@ -66,10 +66,10 @@ def generate_class_info(dataset_name):
             "Class9",
             "Class10",
         ]
-    elif dataset_name == "SDD":
+    elif dataset_name == "sdd":
         obj_list = ["SDD"]
         # obj_list = ["electrical commutators"]
-    elif dataset_name == "DTD":
+    elif dataset_name == "dtd":
         obj_list = [
             "Woven_001",
             "Woven_127",
