@@ -10,7 +10,7 @@
 #SBATCH --constraint=dlg4|dlg5
 
 ### FIXME: update job-name
-#SBATCH --job-name="e_dagm"
+#SBATCH --job-name="e_sdd"
 #SBATCH --account=punim1623
 #SBATCH --time=0-03:00:00
 
@@ -27,14 +27,14 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=30
+SEED=40
 
 # FIXME: update save_path, checkpoint_path
 
 python test.py \
-  --dataset dagm \
-  --data_path data/dagm \
-  --save_path ./results/dagm/0shot_baseline_$SEED \
+  --dataset sdd \
+  --data_path data/sdd \
+  --save_path ./results/sdd/0shot_baseline_$SEED \
   --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \

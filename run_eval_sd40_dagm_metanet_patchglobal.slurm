@@ -10,7 +10,7 @@
 ###SBATCH --constraint=dlg4|dlg5
 
 ### FIXME: update job-name
-#SBATCH --job-name="e_mpdd"
+#SBATCH --job-name="e_dagm"
 #SBATCH --account=punim1623
 #SBATCH --time=0-03:00:00
 
