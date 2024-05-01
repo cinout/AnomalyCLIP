@@ -154,6 +154,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.morep = args.morep
         self.metanet_patch_and_global = args.metanet_patch_and_global
         self.metanet_patch_only = args.metanet_patch_only
+        self.reverse_learning = args.reverse_learning
 
         """
         Unused
@@ -218,6 +219,13 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                         ]
                     )
                 )
+
+        """
+        Reverse Learning
+        """
+        if self.reverse_learning:
+            # TODO: a learning network
+            pass
 
         """
         normal/abnormal templates
@@ -515,6 +523,10 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             )  # [2, 77]
 
         prompts = torch.cat([prompts_pos, prompts_neg], dim=0)  # [2 or 2*bs, 77, 768]
+
+        if self.reverse_learning:
+            # TODO: generate image features from patch
+            pass
 
         """
         prompts: [2 or 2*bs, 77, 768], 2 is pos&neg, embeddings with 12 Xs replaced already

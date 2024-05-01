@@ -320,6 +320,11 @@ if __name__ == "__main__":
         action="store_true",
         help="use patch features only in meta_net",
     )
+    parser.add_argument(
+        "--reverse_learning",
+        action="store_true",
+        help="use the similarity between tokenized text and post-processed image feature for training/eval",
+    )
 
     args = parser.parse_args()
     print(

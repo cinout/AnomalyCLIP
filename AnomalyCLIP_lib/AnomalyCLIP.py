@@ -689,8 +689,8 @@ class AnomalyCLIP(nn.Module):
 
     def encode_text_learn(
         self,
-        prompts,  # [2, 77, 768] embeddings with 12 Xs replaced already
-        tokenized_prompts,  # [2, 77] prompts are tokenized, but not clip_model.token_embedding, with 12 Xs included
+        prompts,  # [2 or 2*bs, 77, 768] embeddings with 12 Xs replaced already
+        tokenized_prompts,  # [2 or 2*bs, 77] prompts are tokenized, but not clip_model.token_embedding, with 12 Xs included
         deep_compound_prompts_text=None,  # [4, 768] * 8
         normalize: bool = False,
     ):
