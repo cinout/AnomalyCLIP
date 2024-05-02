@@ -100,7 +100,8 @@ def train(args):
                 image_features=image_features,
                 patch_features=patch_features,
                 cls_id=None,
-            )
+            )  # prompts: [2 or 2*bs, 77, 768]; tokenized_prompts: [2 or 2*bs, 77]; compound_prompts_text: [4, 768] * 8
+
             text_features = model.encode_text_learn(
                 prompts, tokenized_prompts, compound_prompts_text
             ).float()  # [2 or 2*bs, 768]

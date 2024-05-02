@@ -40,7 +40,7 @@ def generate_text_features(
     )
     text_features = model.encode_text_learn(
         prompts, tokenized_prompts, compound_prompts_text
-    ).float()
+    ).float()  # [2 or 2*bs, 768]
     text_features = torch.stack(torch.chunk(text_features, dim=0, chunks=2), dim=1)
     text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
@@ -107,6 +107,10 @@ def test(args):
         text_features = generate_text_features(prompt_learner, model)
 
     model.to(device)
+
+    if args.debug_mode:
+        all_results = []
+
     for idx, items in enumerate(tqdm(test_dataloader)):
         image = items["img"].to(device)
         cls_name = items["cls_name"]
@@ -115,6 +119,10 @@ def test(args):
         gt_mask[gt_mask > 0.5], gt_mask[gt_mask <= 0.5] = 1, 0
         results[cls_name[0]]["imgs_masks"].append(gt_mask)  # px
         results[cls_name[0]]["gt_sp"].extend(items["anomaly"].detach().cpu())
+
+        if args.debug_mode:
+            content = dict()
+            content["gt_anomaly"] = items["anomaly"]
 
         with torch.no_grad():
             image_features, patch_features = model.encode_image(
@@ -127,17 +135,30 @@ def test(args):
                     prompt_learner, model, image_features, patch_features
                 )
 
+            if args.debug_mode:
+                content["text_features"] = text_features[0]  # [2, 768]
+                content["image_features"] = image_features[0]  # [768]
+                content["gt_mask"] = gt_mask[0, 0]  # [518, 518]
+
             text_probs = image_features @ text_features.permute(0, 2, 1)
             text_probs = (text_probs / 0.07).softmax(-1)
             text_probs = text_probs[:, 0, 1]
             results[cls_name[0]]["pr_sp"].extend(text_probs.detach().cpu())
 
             anomaly_map_list = []
+
+            if args.debug_mode:
+                patch_features_norm = []
+
             for idx, patch_feature in enumerate(patch_features):
                 if idx >= args.feature_map_layer[0]:
                     patch_feature = patch_feature / patch_feature.norm(
                         dim=-1, keepdim=True
                     )
+
+                    if args.debug_mode:
+                        patch_features_norm.append(patch_feature[0, 1:, :])
+
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(
                         patch_feature, text_features
                     )
@@ -149,6 +170,18 @@ def test(args):
                         similarity_map[..., 1] + 1 - similarity_map[..., 0]
                     ) / 2.0
                     anomaly_map_list.append(anomaly_map)
+
+            if args.debug_mode:
+                patch_features_norm = torch.stack(patch_features_norm, dim=0)
+                patch_features_norm = torch.mean(patch_features_norm, dim=0)
+                side = int(patch_features_norm.shape[0] ** 0.5)
+                patch_features_norm = torch.reshape(
+                    patch_features_norm, (side, side, -1)
+                )
+                content["patch_features"] = patch_features_norm  # [37, 37, 768]
+
+                all_results.append(content)
+                continue
 
             anomaly_map = torch.stack(anomaly_map_list)  # [4, 1, 518, 518]
             anomaly_map = anomaly_map.sum(dim=0)  # [1, 518, 518]
@@ -171,6 +204,17 @@ def test(args):
                     cls_name,
                     gt_mask,
                 )
+
+    if args.debug_mode:
+        condition = "baseline"
+        if args.meta_net and args.metanet_patch_and_global:
+            condition = "metanet_pag"
+        elif args.meta_net and args.metanet_patch_only:
+            condition = "metanet_ponly"
+
+        with open(f"{args.dataset}_{condition}.t", "wb") as f:
+            torch.save(all_results, f)
+        return
 
     table_ls = []
     image_auroc_list = []
@@ -324,6 +368,11 @@ if __name__ == "__main__":
         "--reverse_learning",
         action="store_true",
         help="use the similarity between tokenized text and post-processed image feature for training/eval",
+    )
+    parser.add_argument(
+        "--debug_mode",
+        action="store_true",
+        help="",
     )
 
     args = parser.parse_args()

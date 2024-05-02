@@ -155,6 +155,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.metanet_patch_and_global = args.metanet_patch_and_global
         self.metanet_patch_only = args.metanet_patch_only
         self.reverse_learning = args.reverse_learning
+        self.debug_mode = args.debug_mode
 
         """
         Unused
