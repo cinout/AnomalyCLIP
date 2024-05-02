@@ -350,10 +350,10 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
         tokenized_prompts_pos = torch.cat(
             tokenized_prompts_pos
-        )  # [1, 77]; the [0] is 49406; then [1:13] is 324; then [13:16] is 14115, 269, 49407; the rest are 0
+        )  # [1, 77]; the [0] is 49406; then [1:13] is 324 (X); then [13:16] is 14115 (object), 269 (.), 49407 (EOT); the rest are 0
         tokenized_prompts_neg = torch.cat(
             tokenized_prompts_neg
-        )  # [1, 77]; the [0] is 49406; then [1:13] is 324; then [13:17] is 13568, 14115, 269, 49407; the rest are 0
+        )  # [1, 77]; the [0] is 49406; then [1:13] is 324 (X); then [13:17] is 13568 (damaged), 14115 (object), 269 (.), 49407 (EOT); the rest are 0
 
         # 生成相应的text embedding
         with torch.no_grad():
@@ -529,8 +529,10 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             pass
 
         """
-        prompts: [2 or 2*bs, 77, 768], 2 is pos&neg, embeddings with 12 Xs replaced already
-        tokenized_prompts: [2 or 2*bs, 77], prompts are tokenized, but not clip_model.token_embedding, with 12 Xs included
+        prompts: [2 or 2*bs, 77, 768], 2 is pos&neg, embeddings with 12 Xs replaced by learnables already
+
+        tokenized_prompts: [2 or 2*bs, 77], prompts are tokenized, but NOT clip_model.token_embedding, with 12 Xs included. Used for finding EOT. No learnable parameters.
+
         learnable token/text embeddings: [4, 768] * 8
         """
         return prompts, tokenized_prompts, self.compound_prompts_text
