@@ -100,15 +100,18 @@ def test(args):
     checkpoint = torch.load(args.checkpoint_path, map_location=device)
     prompt_learner.load_state_dict(checkpoint["prompt_learner"])
     prompt_learner.to(device)
+    prompt_learner.eval()
     model.to(device)
     model.visual.DAPM_replace(DPAM_layer=20)
 
-    if not args.meta_net:
+    if not args.meta_net or args.debug_mode:
         text_features = generate_text_features(prompt_learner, model)
 
     model.to(device)
 
     if args.debug_mode:
+        stored_features = dict()
+        stored_features["prior_text_feature"] = text_features
         all_results = []
 
     for idx, items in enumerate(tqdm(test_dataloader)):
@@ -122,7 +125,8 @@ def test(args):
 
         if args.debug_mode:
             content = dict()
-            content["gt_anomaly"] = items["anomaly"]
+            content["gt_anomaly"] = items["anomaly"][0]
+            content["class_name"] = cls_name[0]
 
         with torch.no_grad():
             image_features, patch_features = model.encode_image(
@@ -134,10 +138,12 @@ def test(args):
                 text_features = generate_text_features(
                     prompt_learner, model, image_features, patch_features
                 )
+                if args.debug_mode:
+                    content["text_features"] = text_features[0]  # [2, 768]
 
             if args.debug_mode:
-                content["text_features"] = text_features[0]  # [2, 768]
-                content["image_features"] = image_features[0]  # [768]
+                if not args.meta_net:
+                    content["image_features"] = image_features[0]  # [768]
                 content["gt_mask"] = gt_mask[0, 0]  # [518, 518]
 
             text_probs = image_features @ text_features.permute(0, 2, 1)
@@ -150,8 +156,8 @@ def test(args):
             if args.debug_mode:
                 patch_features_norm = []
 
-            for idx, patch_feature in enumerate(patch_features):
-                if idx >= args.feature_map_layer[0]:
+            for patch_idx, patch_feature in enumerate(patch_features):
+                if patch_idx >= args.feature_map_layer[0]:
                     patch_feature = patch_feature / patch_feature.norm(
                         dim=-1, keepdim=True
                     )
@@ -181,6 +187,7 @@ def test(args):
                 content["patch_features"] = patch_features_norm  # [37, 37, 768]
 
                 all_results.append(content)
+
                 continue
 
             anomaly_map = torch.stack(anomaly_map_list)  # [4, 1, 518, 518]
@@ -206,6 +213,7 @@ def test(args):
                 )
 
     if args.debug_mode:
+        stored_features["individual"] = all_results
         condition = "baseline"
         if args.meta_net and args.metanet_patch_and_global:
             condition = "metanet_pag"
@@ -213,7 +221,7 @@ def test(args):
             condition = "metanet_ponly"
 
         with open(f"{args.dataset}_{condition}.t", "wb") as f:
-            torch.save(all_results, f)
+            torch.save(stored_features, f)
         return
 
     table_ls = []

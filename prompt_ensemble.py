@@ -420,7 +420,15 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         _, l, d = self.tokenized_prompts_neg.shape
         tokenized_prompts_neg = self.tokenized_prompts_neg.reshape(-1, d)  # [1, 77]
 
-        if self.meta_net:
+        if (
+            self.meta_net
+            and not self.debug_mode
+            and image_features is None
+            and patch_features is None
+        ):
+            raise Exception("Something is not right!")
+
+        if self.meta_net and image_features is not None and patch_features is not None:
             if self.metanet_patch_only:
                 patch_features = [
                     torch.mean(feature[:, 1:, :], dim=1) for feature in patch_features

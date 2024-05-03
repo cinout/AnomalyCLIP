@@ -14,6 +14,12 @@ import seaborn as sns
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+with open("mpdd_metanet_pag.t", "rb") as f:
+    mpdd_metanet_pag = torch.load(f, map_location=device)
+
+print(mpdd_metanet_pag)
+
+exit()
 p1dist = torch.nn.PairwiseDistance(p=1)
 p2dist = torch.nn.PairwiseDistance(p=2)
 
