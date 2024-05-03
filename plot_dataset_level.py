@@ -34,8 +34,10 @@ for dataset in datasets:
     content_Y = []
 
     # text features prior
-    baseline_text_prior = baseline["prior_text_feature"][0].detach().numpy()  # [2, 768]
-    metanet_text_prior = metanet["prior_text_feature"][0].detach().numpy()
+    baseline_text_prior = (
+        baseline["prior_text_feature"][0].detach().cpu().numpy()
+    )  # [2, 768]
+    metanet_text_prior = metanet["prior_text_feature"][0].detach().cpu().numpy()
 
     baseline_text_prior_pos = baseline_text_prior[0]  # [768]
     content_X.append(baseline_text_prior_pos)
@@ -60,10 +62,10 @@ for dataset in datasets:
         """
         Image Level Features
         """
-        image_features = baseline["image_features"].detach().numpy()  # [768]
+        image_features = baseline["image_features"].detach().cpu().numpy()  # [768]
         content_X.append(image_features)
 
-        gt_anomaly = baseline["gt_anomaly"].detach().numpy()  # 0 or 1
+        gt_anomaly = baseline["gt_anomaly"].detach().cpu().numpy()  # 0 or 1
         class_name = baseline["class_name"]  # text
         category_id = (
             FIXED_LABELS
@@ -76,7 +78,7 @@ for dataset in datasets:
         Metanet Text Features
         """
         metanet_text = (
-            metanet["text_features"].detach().numpy()
+            metanet["text_features"].detach().cpu().numpy()
         )  # [2, 768] metanet adjusted
 
         metanet_text_pos = metanet_text[0]  # [768]
@@ -96,8 +98,10 @@ for dataset in datasets:
         """
         Patch Level Features
         """
-        gt_mask = baseline["gt_mask"].detach().numpy()  # [518, 518]
-        patch_features = baseline["patch_features"].detach().numpy()  # [37, 37, 768]
+        gt_mask = baseline["gt_mask"].detach().cpu().numpy()  # [518, 518]
+        patch_features = (
+            baseline["patch_features"].detach().cpu().numpy()
+        )  # [37, 37, 768]
 
     # MAPPING: label -> color/label/shape
     category_to_label = {

@@ -99,8 +99,10 @@ for dataset in datasets:
         metanet = torch.load(f, map_location=device)
 
     # text features prior
-    baseline_text_prior = baseline["prior_text_feature"][0].detach().numpy()  # [2, 768]
-    metanet_text_prior = metanet["prior_text_feature"][0].detach().numpy()
+    baseline_text_prior = (
+        baseline["prior_text_feature"][0].detach().cpu().numpy()
+    )  # [2, 768]
+    metanet_text_prior = metanet["prior_text_feature"][0].detach().cpu().numpy()
     baseline_text_prior_pos = baseline_text_prior[0]  # [768]
     baseline_text_prior_neg = baseline_text_prior[1]  # [768]
     metanet_text_prior_pos = metanet_text_prior[0]  # [768]
@@ -113,16 +115,18 @@ for dataset in datasets:
         info = {}
         class_name = baseline["class_name"]  # text
 
-        info["image_features"] = baseline["image_features"].detach().numpy()  # [768]
-        info["gt_anomaly"] = baseline["gt_anomaly"].detach().numpy()  # 0 or 1
+        info["image_features"] = (
+            baseline["image_features"].detach().cpu().numpy()
+        )  # [768]
+        info["gt_anomaly"] = baseline["gt_anomaly"].detach().cpu().numpy()  # 0 or 1
         metanet_text = (
-            metanet["text_features"].detach().numpy()
+            metanet["text_features"].detach().cpu().numpy()
         )  # [2, 768] metanet adjusted
         info["metanet_text_pos"] = metanet_text[0]  # [768] metanet adjusted
         info["metanet_text_neg"] = metanet_text[1]  # [768] metanet adjusted
-        info["gt_mask"] = baseline["gt_mask"].detach().numpy()  # [518, 518]
+        info["gt_mask"] = baseline["gt_mask"].detach().cpu().numpy()  # [518, 518]
         info["patch_features"] = (
-            baseline["patch_features"].detach().numpy()
+            baseline["patch_features"].detach().cpu().numpy()
         )  # [37, 37, 768]
         category_dict[class_name].append(info)
 
