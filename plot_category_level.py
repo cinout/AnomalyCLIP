@@ -1,15 +1,7 @@
 import torch
 import numpy as np
-import pandas as pd
-
-# from sklearn.datasets import fetch_mldata
-from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-
-from collections import Counter
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import seaborn as sns
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
