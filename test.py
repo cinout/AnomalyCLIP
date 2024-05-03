@@ -125,8 +125,9 @@ def test(args):
 
         if args.debug_mode:
             content = dict()
-            content["gt_anomaly"] = items["anomaly"][0]
-            content["class_name"] = cls_name[0]
+            if not args.meta_net:
+                content["gt_anomaly"] = items["anomaly"][0]
+                content["class_name"] = cls_name[0]
 
         with torch.no_grad():
             image_features, patch_features = model.encode_image(
@@ -144,7 +145,7 @@ def test(args):
             if args.debug_mode:
                 if not args.meta_net:
                     content["image_features"] = image_features[0]  # [768]
-                content["gt_mask"] = gt_mask[0, 0]  # [518, 518]
+                    content["gt_mask"] = gt_mask[0, 0]  # [518, 518]
 
             text_probs = image_features @ text_features.permute(0, 2, 1)
             text_probs = (text_probs / 0.07).softmax(-1)
@@ -184,7 +185,8 @@ def test(args):
                 patch_features_norm = torch.reshape(
                     patch_features_norm, (side, side, -1)
                 )
-                content["patch_features"] = patch_features_norm  # [37, 37, 768]
+                if not args.meta_net:
+                    content["patch_features"] = patch_features_norm  # [37, 37, 768]
 
                 all_results.append(content)
 
