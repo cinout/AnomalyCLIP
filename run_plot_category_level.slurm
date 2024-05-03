@@ -19,7 +19,7 @@
 
 ### "ntasks-per-node" should have same value as "res=gpu:"
 
-#SBATCH --mem=60G
+#SBATCH --mem=100G
 
 module purge
 
