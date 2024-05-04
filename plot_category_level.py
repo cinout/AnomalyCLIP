@@ -2,12 +2,15 @@ import torch
 import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
-
+import random
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+tsne_types = ["patch", "image"]  # "patch", "image"
 
-datasets = ["btad", "dagm", "dtd", "mpdd", "mvtec", "sdd", "visa"]
+# TODO:
+# datasets = ["btad", "dagm", "dtd", "mpdd", "mvtec", "sdd", "visa"]
+datasets = ["btad"]
 categories_by_dataset = {
     "btad": ["01", "02", "03"],
     "dagm": [
@@ -124,99 +127,225 @@ for dataset in datasets:
         )  # [2, 768] metanet adjusted
         info["metanet_text_pos"] = metanet_text[0]  # [768] metanet adjusted
         info["metanet_text_neg"] = metanet_text[1]  # [768] metanet adjusted
-        info["gt_mask"] = baseline["gt_mask"].detach().cpu().numpy()  # [518, 518]
-        info["patch_features"] = (
-            baseline["patch_features"].detach().cpu().numpy()
-        )  # [37, 37, 768]
+
+        gt_mask = baseline["gt_mask"].detach()  # [518, 518]
+        patch_features = baseline["patch_features"]  # [37, 37, 768]
+
+        gt_mask = (
+            torch.nn.functional.interpolate(
+                gt_mask.unsqueeze(0).unsqueeze(0),
+                (patch_features.shape[0], patch_features.shape[1]),
+            )
+            .flatten()
+            .cpu()
+            .numpy()
+        )  # [1369=37x37,], values 0. or 1.
+        info["gt_mask"] = gt_mask
+        patch_features = (
+            patch_features.view((-1, patch_features.shape[-1])).detach().cpu().numpy()
+        )  # [1369, 768]
+        info["patch_features"] = patch_features
+
         category_dict[class_name].append(info)
 
     # SECOND FOR LOOP [category]
     for category in categories:
-        content_X = []
-        content_Y = []
 
-        content_X.append(baseline_text_prior_pos)
-        content_Y.append(0)
-        content_X.append(baseline_text_prior_neg)
-        content_Y.append(1)
-        content_X.append(metanet_text_prior_pos)
-        content_Y.append(2)
-        content_X.append(metanet_text_prior_neg)
-        content_Y.append(3)
+        # THIRD FOR LOOP [tsne_type]
+        for tsne_type in tsne_types:
+            content_X = []
+            content_Y = []
 
-        # read data
-        for sample in category_dict[category]:
-            image_features = sample["image_features"]
-            gt_anomaly = sample["gt_anomaly"]
-            content_X.append(image_features)
-            content_Y.append(FIXED_LABELS + gt_anomaly)
-            metanet_text_pos = sample["metanet_text_pos"]
-            content_X.append(metanet_text_pos)
-            content_Y.append(FIXED_LABELS + 2)
-            metanet_text_neg = sample["metanet_text_neg"]
-            content_X.append(metanet_text_neg)
-            content_Y.append(FIXED_LABELS + 3)
+            content_X.append(baseline_text_prior_pos)
+            content_Y.append(0)
+            content_X.append(baseline_text_prior_neg)
+            content_Y.append(1)
+            content_X.append(metanet_text_prior_pos)
+            content_Y.append(2)
+            content_X.append(metanet_text_prior_neg)
+            content_Y.append(3)
 
-        # MAPPING: label -> color/label/shape
-        category_to_label = {
-            0: "bs+",
-            1: "bs-",
-            2: "mt+",
-            3: "mt-",
-            4: "[I]+",
-            5: "[I]-",
-            6: "+",
-            7: "-",
-        }
+            # read data
+            all_samples_of_category = category_dict[category]
 
-        category_to_color = {
-            0: "#0D0D04",
-            1: "#0D0D04",
-            2: "#F63110",
-            3: "#F63110",
-            4: "#20603D",
-            5: "#6EC193",
-            6: "#20603D",
-            7: "#6EC193",
-        }
+            if tsne_type == "patch":
+                random.shuffle(all_samples_of_category)
+                num_normal = 0
+                num_abnormal = 0
+                NORMAL_PERCENT_PER_SAMPLE = 0.05
+                ABNORMAL_PERCENT_PER_SAMPLE = 0.15
+                TOTAL_PATCH_NORMAL = 7000
+                TOTAL_PATCH_ABNORMAL = 3000
 
-        tsne = TSNE(
-            n_components=2,
-            init="pca",
-        )
-        content_X = np.array(content_X)
-        content_Y = np.array(content_Y)
-        transformed_x = tsne.fit_transform(content_X)
+            for sample in all_samples_of_category:
+                # text features
+                metanet_text_pos = sample["metanet_text_pos"]
+                content_X.append(metanet_text_pos)
+                content_Y.append(FIXED_LABELS + 2)
+                metanet_text_neg = sample["metanet_text_neg"]
+                content_X.append(metanet_text_neg)
+                content_Y.append(FIXED_LABELS + 3)
 
-        fig, ax = plt.subplots()
+                if tsne_type == "image":
+                    # image-level
+                    image_features = sample["image_features"]
+                    gt_anomaly = sample["gt_anomaly"]
+                    content_X.append(image_features)
+                    content_Y.append(FIXED_LABELS + gt_anomaly)
+                else:
+                    # patch-level
+                    patch_features = sample["patch_features"]  # [1369, 768]
+                    gt_mask = sample["gt_mask"]  # [1369], values 0. or 1.
 
-        ax.set(title=f"IMAGE-LEVEL [Dataset] {dataset} [Category] {category}")
-        for category_id, label in category_to_label.items():
-            mask = content_Y == category_id
+                    normal_patches = []
+                    abnormal_patches = []
 
-            marker_choice = None
-            if category_id in [0, 2, 6]:  # text, +
-                marker_choice = 6
-            elif category_id in [1, 3, 7]:  # text, -
-                marker_choice = 7
-            elif category_id == 4:  # image, +
-                marker_choice = "+"
-            elif category_id == 5:  # image, -
-                marker_choice = "*"
+                    for gt, patch in zip(gt_mask, patch_features):
+                        gt = int(gt)
+                        if gt == 1:
+                            abnormal_patches.append(patch)
+                        else:
+                            normal_patches.append(patch)
 
-            scale = None
-            if category_id in [0, 1, 2, 3]:
-                scale = 128
+                    random.shuffle(normal_patches)
+                    random.shuffle(abnormal_patches)
 
-            ax.scatter(
-                transformed_x[mask, 0],
-                transformed_x[mask, 1],
-                label=label,
-                c=category_to_color[category_id],
-                marker=marker_choice,
-                s=scale,
-                # s=0.8 if category_id in [0, 1, 2, 3] else 0.3,
+                    normal_patches = normal_patches[
+                        : int(len(normal_patches) * NORMAL_PERCENT_PER_SAMPLE)
+                    ]
+                    abnormal_patches = abnormal_patches[
+                        : int(len(abnormal_patches) * ABNORMAL_PERCENT_PER_SAMPLE)
+                    ]
+
+                    for patch in normal_patches:
+                        content_X.append(patch)
+                        content_Y.append(FIXED_LABELS)
+                        num_normal += 1
+                        if num_normal > TOTAL_PATCH_NORMAL:
+                            break
+
+                    for patch in abnormal_patches:
+                        content_X.append(patch)
+                        content_Y.append(FIXED_LABELS + 1)
+                        num_abnormal += 1
+                        if num_abnormal > TOTAL_PATCH_ABNORMAL:
+                            break
+
+                    # gt_patch_pairs = [
+                    #     (gt, patch) for gt, patch in zip(gt_mask, patch_features)
+                    # ]
+                    # total_count = len(gt_patch_pairs)
+                    # gt_patch_pairs = gt_patch_pairs[
+                    #     : int(total_count * PERCENT_PER_SAMPLE)
+                    # ]  # use a portion from each sample
+
+                    # for gt, patch in gt_patch_pairs:
+                    #     gt = int(gt)
+                    #     if gt == 1:
+                    #         if num_abnormal <= TOTAL_PATCH_ABNORMAL:
+                    #             content_X.append(patch)
+                    #             content_Y.append(FIXED_LABELS + gt)
+                    #             num_abnormal += 1
+                    #         else:
+                    #             continue
+                    #     else:
+                    #         if num_normal <= TOTAL_PATCH_NORMAL:
+                    #             content_X.append(patch)
+                    #             content_Y.append(FIXED_LABELS + gt)
+                    #             num_normal += 1
+                    #         else:
+                    #             continue
+
+                    if (
+                        num_abnormal > TOTAL_PATCH_ABNORMAL
+                        and num_normal > TOTAL_PATCH_NORMAL
+                    ):
+                        break
+
+            # MAPPING: label -> color/label/shape
+            # category_to_label = {
+            #     0: "bs+",
+            #     1: "bs-",
+            #     2: "mt+",
+            #     3: "mt-",
+            #     4: "[I]+" if tsne_type == "image" else "[P]+",
+            #     5: "[I]-" if tsne_type == "image" else "[P]-",
+            #     6: "+",
+            #     7: "-",
+            # }
+            category_to_label = [
+                (0, "bs+"),
+                (1, "bs-"),
+                (2, "mt+"),
+                (3, "mt-"),
+                (4, "[I]+" if tsne_type == "image" else "[P]+"),
+                (5, "[I]-" if tsne_type == "image" else "[P]-"),
+                (6, "+"),
+                (7, "-"),
+            ]
+            category_to_label.reverse()
+
+            category_to_color = {
+                0: "#0D0D04",
+                1: "#0D0D04",
+                2: "#F63110",
+                3: "#F63110",
+                4: "#20603D",
+                5: "#6EC193",
+                6: "#D1910B",
+                7: "#F6CB71",
+            }
+
+            tsne = TSNE(
+                n_components=2,
+                init="pca",
+            )
+            content_X = np.array(content_X)
+            content_Y = np.array(content_Y)
+            transformed_x = tsne.fit_transform(content_X)
+
+            fig, ax = plt.subplots()
+            fig.set_figheight(9)
+            fig.set_figwidth(12)
+
+            ax.set(
+                title=(
+                    f"IMAGE-LEVEL [Dataset] {dataset} [Category] {category}"
+                    if tsne_type == "image"
+                    else f"PIXEL-LEVEL [Dataset] {dataset} [Category] {category}"
+                )
             )
 
-        ax.legend()
-        plt.savefig(f"Image_level_{dataset}_{category}.png")
+            for category_id, label in category_to_label:
+                mask = content_Y == category_id
+
+                marker_choice = None
+                if category_id in [0, 2, 6]:  # text, +
+                    marker_choice = 6
+                elif category_id in [1, 3, 7]:  # text, -
+                    marker_choice = 7
+                elif category_id == 4:  # image/patch, +
+                    marker_choice = "+"
+                elif category_id == 5:  # image/patch, -
+                    marker_choice = "*"
+
+                scale = None
+                if category_id in [0, 1, 2, 3]:
+                    scale = 128
+
+                ax.scatter(
+                    transformed_x[mask, 0],
+                    transformed_x[mask, 1],
+                    label=label,
+                    c=category_to_color[category_id],
+                    marker=marker_choice,
+                    s=scale,
+                    # s=0.8 if category_id in [0, 1, 2, 3] else 0.3,
+                )
+
+            ax.legend()
+            plt.savefig(
+                f"Image_level_{dataset}_{category}.png"
+                if tsne_type == "image"
+                else f"Pixel_{dataset}_{category}.png"
+            )

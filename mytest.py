@@ -1,11 +1,21 @@
 import torch
 
+import random
 
-image_features = torch.randint(0, 5, size=(1, 4, 6))
-print(image_features)
-image_features = image_features[..., 3:]
-print(image_features)
-print(image_features.shape)
+aa = [
+    "positional_embedding",
+    "text_projection",
+    "logit_scale",
+    "visual.class_embedding",
+    "visual.positional_embedding",
+    "visual.proj",
+    "visual.conv1.weight",
+    "visual.ln_pre.weight",
+    "visual.ln_pre.bias",
+]
+
+random.shuffle(aa)
+print(aa)
 
 
 # text_features = torch.randint(0, 5, size=(1, 4, 4))
