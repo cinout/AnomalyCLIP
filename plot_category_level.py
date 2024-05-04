@@ -9,8 +9,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 tsne_types = ["patch", "image"]  # "patch", "image"
 
 # TODO:
-# datasets = ["btad", "dagm", "dtd", "mpdd", "mvtec", "sdd", "visa"]
-datasets = ["btad"]
+datasets = ["btad", "dagm", "dtd", "mpdd", "mvtec", "sdd", "visa"]
+# datasets = ["btad"]
 categories_by_dataset = {
     "btad": ["01", "02", "03"],
     "dagm": [
