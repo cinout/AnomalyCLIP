@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 import random
 
@@ -8,7 +9,9 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 tsne_types = ["patch", "image"]  # "patch", "image"
 
-# TODO:
+
+just_visual = False  # True, False
+# TODO: UPDATE
 datasets = ["btad", "dagm", "dtd", "mpdd", "mvtec", "sdd", "visa"]
 # datasets = ["btad"]
 categories_by_dataset = {
@@ -156,35 +159,62 @@ for dataset in datasets:
             content_X = []
             content_Y = []
 
-            content_X.append(baseline_text_prior_pos)
-            content_Y.append(0)
-            content_X.append(baseline_text_prior_neg)
-            content_Y.append(1)
-            content_X.append(metanet_text_prior_pos)
-            content_Y.append(2)
-            content_X.append(metanet_text_prior_neg)
-            content_Y.append(3)
+            if not just_visual:
+                content_X.append(baseline_text_prior_pos)
+                content_Y.append(0)
+                content_X.append(baseline_text_prior_neg)
+                content_Y.append(1)
+                content_X.append(metanet_text_prior_pos)
+                content_Y.append(2)
+                content_X.append(metanet_text_prior_neg)
+                content_Y.append(3)
 
             # read data
             all_samples_of_category = category_dict[category]
 
             if tsne_type == "patch":
+                total_normal_patches = 0
+                total_abnormal_patches = 0
+                for sample in all_samples_of_category:
+                    gt_mask = sample["gt_mask"]  # [1369], values 0. or 1.
+                    values, counts = np.unique(gt_mask, return_counts=True)
+                    for value, count in zip(values, counts):
+                        if int(value) == 1:
+                            total_abnormal_patches += count
+                        else:
+                            total_normal_patches += count
+
+                normal_rate = total_normal_patches / (
+                    total_normal_patches + total_abnormal_patches
+                )
+                abnormal_rate = 1 - normal_rate
+                TOTAL_SAMPLES = len(all_samples_of_category)
+                TOTAL_PATCH_TO_DRAW = 10000
+                TOTAL_PATCH_NORMAL = int(TOTAL_PATCH_TO_DRAW * normal_rate)
+                TOTAL_PATCH_ABNORMAL = TOTAL_PATCH_TO_DRAW - TOTAL_PATCH_NORMAL
+
+                PERCENT_PER_SAMPLE = TOTAL_PATCH_TO_DRAW / (TOTAL_SAMPLES * 1369)
+                NORMAL_PERCENT_PER_SAMPLE = PERCENT_PER_SAMPLE + 0.05
+                ABNORMAL_PERCENT_PER_SAMPLE = PERCENT_PER_SAMPLE + 0.1
+
+                # TOTAL_PATCH_NORMAL = 7000
+                # TOTAL_PATCH_ABNORMAL = 3000
+                # NORMAL_PERCENT_PER_SAMPLE = 0.05
+                # ABNORMAL_PERCENT_PER_SAMPLE = 0.15
+
                 random.shuffle(all_samples_of_category)
                 num_normal = 0
                 num_abnormal = 0
-                NORMAL_PERCENT_PER_SAMPLE = 0.05
-                ABNORMAL_PERCENT_PER_SAMPLE = 0.15
-                TOTAL_PATCH_NORMAL = 7000
-                TOTAL_PATCH_ABNORMAL = 3000
 
             for sample in all_samples_of_category:
-                # text features
-                metanet_text_pos = sample["metanet_text_pos"]
-                content_X.append(metanet_text_pos)
-                content_Y.append(FIXED_LABELS + 2)
-                metanet_text_neg = sample["metanet_text_neg"]
-                content_X.append(metanet_text_neg)
-                content_Y.append(FIXED_LABELS + 3)
+                if not just_visual:
+                    # text features
+                    metanet_text_pos = sample["metanet_text_pos"]
+                    content_X.append(metanet_text_pos)
+                    content_Y.append(FIXED_LABELS + 2)
+                    metanet_text_neg = sample["metanet_text_neg"]
+                    content_X.append(metanet_text_neg)
+                    content_Y.append(FIXED_LABELS + 3)
 
                 if tsne_type == "image":
                     # image-level
@@ -273,16 +303,23 @@ for dataset in datasets:
             #     6: "+",
             #     7: "-",
             # }
-            category_to_label = [
-                (0, "bs+"),
-                (1, "bs-"),
-                (2, "mt+"),
-                (3, "mt-"),
-                (4, "[I]+" if tsne_type == "image" else "[P]+"),
-                (5, "[I]-" if tsne_type == "image" else "[P]-"),
-                (6, "+"),
-                (7, "-"),
-            ]
+            category_to_label = (
+                [
+                    (4, "[I]+" if tsne_type == "image" else "[P]+"),
+                    (5, "[I]-" if tsne_type == "image" else "[P]-"),
+                ]
+                if just_visual
+                else [
+                    (0, "bs+"),
+                    (1, "bs-"),
+                    (2, "mt+"),
+                    (3, "mt-"),
+                    (4, "[I]+" if tsne_type == "image" else "[P]+"),
+                    (5, "[I]-" if tsne_type == "image" else "[P]-"),
+                    (6, "+"),
+                    (7, "-"),
+                ]
+            )
             category_to_label.reverse()
 
             category_to_color = {
@@ -296,13 +333,17 @@ for dataset in datasets:
                 7: "#F6CB71",
             }
 
+            content_X = np.array(content_X)
+            content_Y = np.array(content_Y)
+
+            pca_fitter = PCA(n_components=50)
+            content_X = pca_fitter.fit_transform(content_X)
+
             tsne = TSNE(
                 n_components=2,
                 init="pca",
             )
-            content_X = np.array(content_X)
-            content_Y = np.array(content_Y)
-            transformed_x = tsne.fit_transform(content_X)
+            content_X = tsne.fit_transform(content_X)
 
             fig, ax = plt.subplots()
             fig.set_figheight(9)
@@ -334,18 +375,20 @@ for dataset in datasets:
                     scale = 128
 
                 ax.scatter(
-                    transformed_x[mask, 0],
-                    transformed_x[mask, 1],
+                    content_X[mask, 0],
+                    content_X[mask, 1],
                     label=label,
                     c=category_to_color[category_id],
                     marker=marker_choice,
                     s=scale,
-                    # s=0.8 if category_id in [0, 1, 2, 3] else 0.3,
                 )
 
             ax.legend()
-            plt.savefig(
+            file_name = (
                 f"Image_level_{dataset}_{category}.png"
                 if tsne_type == "image"
                 else f"Pixel_{dataset}_{category}.png"
             )
+            if just_visual:
+                file_name = "Visual_Only_" + file_name
+            plt.savefig(file_name)
