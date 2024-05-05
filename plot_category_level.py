@@ -11,9 +11,10 @@ tsne_types = ["patch", "image"]  # "patch", "image"
 
 
 just_visual = False  # True, False
+auto_percentage = True
 # TODO: UPDATE
-datasets = ["btad", "dagm", "dtd", "mpdd", "mvtec", "sdd", "visa"]
 # datasets = ["btad"]
+datasets = ["btad", "dagm", "dtd", "mpdd", "mvtec", "sdd", "visa"]
 categories_by_dataset = {
     "btad": ["01", "02", "03"],
     "dagm": [
@@ -173,34 +174,35 @@ for dataset in datasets:
             all_samples_of_category = category_dict[category]
 
             if tsne_type == "patch":
-                total_normal_patches = 0
-                total_abnormal_patches = 0
-                for sample in all_samples_of_category:
-                    gt_mask = sample["gt_mask"]  # [1369], values 0. or 1.
-                    values, counts = np.unique(gt_mask, return_counts=True)
-                    for value, count in zip(values, counts):
-                        if int(value) == 1:
-                            total_abnormal_patches += count
-                        else:
-                            total_normal_patches += count
+                if auto_percentage:
+                    total_normal_patches = 0
+                    total_abnormal_patches = 0
+                    for sample in all_samples_of_category:
+                        gt_mask = sample["gt_mask"]  # [1369], values 0. or 1.
+                        values, counts = np.unique(gt_mask, return_counts=True)
+                        for value, count in zip(values, counts):
+                            if int(value) == 1:
+                                total_abnormal_patches += count
+                            else:
+                                total_normal_patches += count
 
-                normal_rate = total_normal_patches / (
-                    total_normal_patches + total_abnormal_patches
-                )
-                abnormal_rate = 1 - normal_rate
-                TOTAL_SAMPLES = len(all_samples_of_category)
-                TOTAL_PATCH_TO_DRAW = 10000
-                TOTAL_PATCH_NORMAL = int(TOTAL_PATCH_TO_DRAW * normal_rate)
-                TOTAL_PATCH_ABNORMAL = TOTAL_PATCH_TO_DRAW - TOTAL_PATCH_NORMAL
+                    normal_rate = total_normal_patches / (
+                        total_normal_patches + total_abnormal_patches
+                    )
+                    abnormal_rate = 1 - normal_rate
+                    TOTAL_SAMPLES = len(all_samples_of_category)
+                    TOTAL_PATCH_TO_DRAW = 10000
+                    TOTAL_PATCH_NORMAL = int(TOTAL_PATCH_TO_DRAW * normal_rate)
+                    TOTAL_PATCH_ABNORMAL = TOTAL_PATCH_TO_DRAW - TOTAL_PATCH_NORMAL
 
-                PERCENT_PER_SAMPLE = TOTAL_PATCH_TO_DRAW / (TOTAL_SAMPLES * 1369)
-                NORMAL_PERCENT_PER_SAMPLE = PERCENT_PER_SAMPLE + 0.05
-                ABNORMAL_PERCENT_PER_SAMPLE = PERCENT_PER_SAMPLE + 0.1
-
-                # TOTAL_PATCH_NORMAL = 7000
-                # TOTAL_PATCH_ABNORMAL = 3000
-                # NORMAL_PERCENT_PER_SAMPLE = 0.05
-                # ABNORMAL_PERCENT_PER_SAMPLE = 0.15
+                    PERCENT_PER_SAMPLE = TOTAL_PATCH_TO_DRAW / (TOTAL_SAMPLES * 1369)
+                    NORMAL_PERCENT_PER_SAMPLE = PERCENT_PER_SAMPLE + 0.05
+                    ABNORMAL_PERCENT_PER_SAMPLE = PERCENT_PER_SAMPLE + 0.1
+                else:
+                    TOTAL_PATCH_NORMAL = 7000
+                    TOTAL_PATCH_ABNORMAL = 3000
+                    NORMAL_PERCENT_PER_SAMPLE = 0.05
+                    ABNORMAL_PERCENT_PER_SAMPLE = 0.15
 
                 random.shuffle(all_samples_of_category)
                 num_normal = 0
@@ -310,27 +312,26 @@ for dataset in datasets:
                 ]
                 if just_visual
                 else [
-                    (0, "bs+"),
-                    (1, "bs-"),
-                    (2, "mt+"),
-                    (3, "mt-"),
                     (4, "[I]+" if tsne_type == "image" else "[P]+"),
                     (5, "[I]-" if tsne_type == "image" else "[P]-"),
                     (6, "+"),
                     (7, "-"),
+                    (0, "bs+"),
+                    (1, "bs-"),
+                    (2, "mt+"),
+                    (3, "mt-"),
                 ]
             )
-            category_to_label.reverse()
 
             category_to_color = {
                 0: "#0D0D04",
                 1: "#0D0D04",
                 2: "#F63110",
                 3: "#F63110",
-                4: "#20603D",
-                5: "#6EC193",
-                6: "#D1910B",
-                7: "#F6CB71",
+                4: "#6EC193",
+                5: "#20603D",
+                6: "#F6CB71",
+                7: "#D1910B",
             }
 
             content_X = np.array(content_X)
