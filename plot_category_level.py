@@ -12,7 +12,7 @@ tsne_types = ["patch", "image"]  # "patch", "image"
 
 just_visual = False  # True, False
 # TODO: UPDATE
-auto_percentage = False
+auto_percentage = True
 # TODO: UPDATE
 # datasets = ["btad"]
 datasets = ["btad", "dagm", "dtd", "mpdd", "mvtec", "sdd", "visa"]
