@@ -10,7 +10,7 @@
 ###SBATCH --constraint=dlg4|dlg5
 
 ### FIXME: update job-name
-#SBATCH --job-name="e_dtd"
+#SBATCH --job-name="e_sdd"
 #SBATCH --account=punim1623
 #SBATCH --time=0-02:00:00
 
@@ -32,10 +32,10 @@ SEED=10
 # FIXME: update save_path, checkpoint_path
 
 python test.py \
-  --dataset dtd \
-  --data_path data/dtd \
-  --save_path ./results/dtd/VIAVISA_0shot_metanet_patchandglobal_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_visa_metanet_patchandglobal_$SEED/epoch_15.pth \
+  --dataset sdd \
+  --data_path data/sdd \
+  --save_path ./results/sdd/0shot_metanet_patchandglobal_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metanet_patchandglobal_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
