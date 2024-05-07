@@ -46,7 +46,7 @@ python train.py \
   --print_freq 1 \
   --epoch 30 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_visa_metanet_patchandglobal_$SEED/ \
+  --save_path ./checkpoints/pretrained_visa_ep30_metanet_patchandglobal_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
