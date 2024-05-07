@@ -12,6 +12,7 @@ import numpy as np
 import os
 import random
 from utils import get_transform
+from torch.utils.tensorboard import SummaryWriter
 
 
 def setup_seed(seed):
@@ -69,6 +70,9 @@ def train(args):
 
     model.eval()
     prompt_learner.train()
+    writer = SummaryWriter(
+        log_dir=args.save_path
+    )  # Writer will output to ./runs/ directory by default. You can change log_dir in here
     for epoch in tqdm(range(args.epoch)):
         loss_list = []
         image_loss_list = []
@@ -159,7 +163,9 @@ def train(args):
                 loss += loss_dice(similarity_map_list[i][:, 0, :, :], 1 - gt)
 
             optimizer.zero_grad()
-            (loss + image_loss).backward()
+            total_loss = loss + image_loss
+            total_loss.backward()
+            writer.add_scalar("Loss/train", total_loss.item())
             optimizer.step()
             loss_list.append(loss.item())
 
@@ -176,6 +182,9 @@ def train(args):
         if epoch + 1 == args.epoch:
             ckp_path = os.path.join(args.save_path, "epoch_" + str(args.epoch) + ".pth")
             torch.save({"prompt_learner": prompt_learner.state_dict()}, ckp_path)
+
+    writer.flush()  # Call flush() method to make sure that all pending events have been written to disk
+    writer.close()  # if you do not need the summary writer anymore, call close() method.
 
 
 if __name__ == "__main__":
