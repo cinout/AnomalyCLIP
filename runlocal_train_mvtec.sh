@@ -9,10 +9,8 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec_$SEED/ \
+  --save_path ./checkpoints/writer_pretrained_mvtec_baseline_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
-  --meta_net \
   --seed $SEED \
-  # --metanet_patch_feature \

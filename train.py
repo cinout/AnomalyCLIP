@@ -267,6 +267,11 @@ if __name__ == "__main__":
         action="store_true",
         help="use the similarity between tokenized text and post-processed image feature for training/eval",
     )
+    parser.add_argument(
+        "--debug_mode",
+        action="store_true",
+        help="",
+    )
     args = parser.parse_args()
     print(
         "\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items()))
