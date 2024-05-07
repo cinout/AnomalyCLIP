@@ -7,7 +7,7 @@ python train.py \
   --image_size 518 \
   --batch_size 8 \
   --print_freq 1 \
-  --epoch 15 \
+  --epoch 1 \
   --save_freq 1 \
   --save_path ./checkpoints/writer_pretrained_mvtec_baseline_$SEED/ \
   --depth 9 \

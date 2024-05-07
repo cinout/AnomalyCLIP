@@ -73,6 +73,8 @@ def train(args):
     writer = SummaryWriter(
         log_dir=args.save_path
     )  # Writer will output to ./runs/ directory by default. You can change log_dir in here
+
+    global_step = 0
     for epoch in tqdm(range(args.epoch)):
         loss_list = []
         image_loss_list = []
@@ -165,7 +167,8 @@ def train(args):
             optimizer.zero_grad()
             total_loss = loss + image_loss
             total_loss.backward()
-            writer.add_scalar("Loss/train", total_loss.item())
+            writer.add_scalar("Loss/train", total_loss.item(), global_step)
+            global_step += 1
             optimizer.step()
             loss_list.append(loss.item())
 
