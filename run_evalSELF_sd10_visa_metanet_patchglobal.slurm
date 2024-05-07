@@ -44,7 +44,7 @@ python test.py \
   --meta_net \
   --metanet_patch_and_global \
   --seed $SEED \
-  --debug_mode \
+  
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s

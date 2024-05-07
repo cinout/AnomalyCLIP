@@ -13,4 +13,4 @@ python test.py \
   --meta_net \
   --metanet_patch_and_global \
   --seed $SEED \
-  --debug_mode \
+  

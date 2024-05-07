@@ -42,7 +42,7 @@ python test.py \
   --n_ctx 12 \
   --t_n_ctx 4 \
   --seed $SEED \
-  --debug_mode \
+  
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
