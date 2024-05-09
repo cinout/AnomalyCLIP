@@ -231,9 +231,9 @@ class ResidualAttentionBlock_MaPLe(nn.Module):
             # Add the learnable tokens of this layer with the input, by replacing previous
             # layer learnable tokens
             if isinstance(x, list):
-                x = [torch.cat([vector, visual_context], dim=0) for vector in prefix]
+                x = [torch.cat([vector, visual_context.to(vector.device)], dim=0) for vector in prefix]
             else:
-                x = torch.cat([prefix, visual_context], dim=0)
+                x = torch.cat([prefix, visual_context.to(prefix.device)], dim=0)
 
             # Once done, update the counter, so that the next time, it does not use same learnable tokens
             counter += 1

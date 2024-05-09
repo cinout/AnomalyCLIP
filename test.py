@@ -137,7 +137,7 @@ def test(args):
                 features_list,
                 DPAM_layer=20,
                 maple=args.maple,
-                compound_deeper_prompts=prompt_learner.visual_deep_prompts.to(device),
+                compound_deeper_prompts=prompt_learner.visual_deep_prompts,
             )
             if args.maple:
                 patch_features = [
