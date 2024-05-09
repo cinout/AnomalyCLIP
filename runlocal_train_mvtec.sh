@@ -15,3 +15,5 @@ python train.py \
   --t_n_ctx 4 \
   --seed $SEED \
   --maple \
+  --meta_net \
+  --metanet_patch_and_global \
