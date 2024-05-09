@@ -68,7 +68,7 @@ class Bottleneck(nn.Module):
 
 
 # For VV self-attention!!!!!
-class Attention(nn.Module):
+class VVAttention(nn.Module):
     def __init__(
         self,
         out_dim,
@@ -118,6 +118,8 @@ class Attention(nn.Module):
         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
         x = self.proj_drop(self.proj(x))
         x_ori = self.proj_drop(self.proj(x_ori))
+
+        # patch, global
         return [x, x_ori]
 
 
@@ -133,6 +135,152 @@ class LayerNorm(nn.LayerNorm):
 class QuickGELU(nn.Module):
     def forward(self, x: torch.Tensor):
         return x * torch.sigmoid(1.702 * x)
+
+
+class ResidualAttentionBlock_MaPLe(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        n_head: int,
+        attn_mask: torch.Tensor = None,
+        design_details=None,
+        i=0,
+    ):
+        super().__init__()
+
+        self.attn = nn.MultiheadAttention(d_model, n_head)
+        self.ln_1 = LayerNorm(d_model)
+        self.mlp = nn.Sequential(
+            OrderedDict(
+                [
+                    ("c_fc", nn.Linear(d_model, d_model * 4)),
+                    ("gelu", QuickGELU()),
+                    ("c_proj", nn.Linear(d_model * 4, d_model)),
+                ]
+            )
+        )
+        self.ln_2 = LayerNorm(d_model)
+        self.attn_mask = attn_mask
+        # For the first iteration i, we do not need to add the learnable parameters here
+        # as it will be added in the beginning, for both text and the vision branch
+        # This must be consistent with the config file prompt
+        self.compound_prompt_nctx = design_details[
+            "learnabel_text_embedding_length"
+        ]  # 4
+
+        # if i == 0:
+        #     self.first_layer = True
+        # else:
+        #     self.first_layer = False
+
+    def attention(self, x: torch.Tensor):
+        self.attn_mask = (
+            self.attn_mask.to(dtype=x.dtype, device=x.device)
+            if self.attn_mask is not None
+            else None
+        )
+
+        if isinstance(self.attn, VVAttention):
+            x = x.transpose(0, 1)
+            x, x_ori = self.attn(x)
+            return [x.transpose(0, 1), x_ori.transpose(0, 1)]
+        else:
+            return self.attn(x, x, x, need_weights=False, attn_mask=self.attn_mask)[0]
+
+    def forward(self, inputs, ffn=False):
+        # the input and output is a three-elements tuple
+
+        # For the first layer, we do not need to add any duplicate, as it is already added
+        # as the shallow version
+        x = inputs[
+            0
+        ]  # start with [1370, 8, 1024], then ...[1374, 8, 1024], then a list of 2*[1374, 8, 1024]
+        compound_prompts_deeper = inputs[1]  # [4, 1024] * 8
+        counter = inputs[2]
+
+        # if not self.first_layer:
+        if (
+            len(compound_prompts_deeper) > 0
+            and counter <= len(compound_prompts_deeper) - 1
+        ):
+            # Remove the outputs produced by learnable tokens of previous layer
+            if counter == 0:
+                prefix = x
+            else:
+                if isinstance(x, list):
+                    prefix = [
+                        vector[0 : vector.shape[0] - self.compound_prompt_nctx, :, :]
+                        for vector in x
+                    ]
+                else:
+
+                    prefix = x[0 : x.shape[0] - self.compound_prompt_nctx, :, :]
+
+            # Create/configure learnable tokens of this layer
+            visual_context = compound_prompts_deeper[counter]  # [4, 1024]
+
+            if isinstance(x, list):
+                bs = x[0].shape[1]
+            else:
+                bs = x.shape[1]
+
+            visual_context = (
+                visual_context.expand(bs, -1, -1).permute(1, 0, 2).half()
+            )  # [4, 8, 1024]
+
+            # Add the learnable tokens of this layer with the input, by replacing previous
+            # layer learnable tokens
+            if isinstance(x, list):
+                x = [torch.cat([vector, visual_context], dim=0) for vector in prefix]
+            else:
+                x = torch.cat([prefix, visual_context], dim=0)
+
+            # Once done, update the counter, so that the next time, it does not use same learnable tokens
+            counter += 1
+
+        if isinstance(self.attn, VVAttention):
+            if isinstance(x, list):
+                if not ffn:
+                    x, x_ori = x
+                    x_res = self.attention(self.ln_1(x_ori))
+                    x_res, x_ori_res = x_res
+                    x_ori += x_ori_res
+                    x_ori = x_ori + self.mlp(self.ln_2(x_ori))
+                    x += x_res  # skip ffn for the new path
+
+                else:
+                    x, x_ori_1 = x
+                    x_res = self.attention(self.ln_1(x_ori_1))
+                    x_res, x_ori_res = x_res
+                    x_ori = x_ori_1 + x_ori_res
+                    x_ori = x_ori + self.mlp(self.ln_2(x_ori))
+                    x += x_res  # skip ffn for the new path
+                    x = x_res + x_ori_1
+                    x = x + self.mlp(self.ln_2(x))
+
+            # start of dual path
+            else:
+                x_res = self.attention(self.ln_1(x))
+                if isinstance(x_res, list):
+                    x_res, x_ori_res = x_res
+                    x_ori = x + x_ori_res
+                    x_ori = x_ori + self.mlp(self.ln_2(x_ori))
+                    x += x_res
+
+            return [
+                [x, x_ori],
+                compound_prompts_deeper,
+                counter,
+            ]
+        else:
+            x = x + self.attention(self.ln_1(x))
+            x = x + self.mlp(self.ln_2(x))
+
+            return [
+                x,
+                compound_prompts_deeper,
+                counter,
+            ]  # return again as a list, so that nn.seq can work
 
 
 class ResidualAttentionBlock(nn.Module):
@@ -165,7 +313,7 @@ class ResidualAttentionBlock(nn.Module):
             if self.attn_mask is not None
             else None
         )
-        if isinstance(self.attn, Attention):
+        if isinstance(self.attn, VVAttention):
             x = x.transpose(0, 1)
             x, x_ori = self.attn(x)
             return [x.transpose(0, 1), x_ori.transpose(0, 1)]
@@ -175,7 +323,7 @@ class ResidualAttentionBlock(nn.Module):
     def forward(self, x, whole=False, ffn=False):
         # dual paths for blocks deeper than "d"
 
-        if isinstance(self.attn, Attention):
+        if isinstance(self.attn, VVAttention):
             if isinstance(x, list):
                 if not ffn:
                     x, x_ori = x
@@ -254,7 +402,7 @@ class ResidualAttentionBlock_learnable_token(nn.Module):
             if self.attn_mask is not None
             else None
         )
-        if isinstance(self.attn, Attention):
+        if isinstance(self.attn, VVAttention):
             x = x.transpose(0, 1)
             x, x_ori = self.attn(x)
             return [x.transpose(0, 1), x_ori.transpose(0, 1)]
@@ -265,7 +413,7 @@ class ResidualAttentionBlock_learnable_token(nn.Module):
 
         # dual paths for blocks deeper than "d"
         # NOT ARRIVED
-        if isinstance(self.attn, Attention):
+        if isinstance(self.attn, VVAttention):
             x = inputs[0]
             if isinstance(x, list):
                 x, x_ori = x
@@ -329,7 +477,6 @@ class Transformer(nn.Module):
         layers: int,  # 24
         heads: int,
         attn_mask: torch.Tensor = None,
-        need_weights: bool = False,
         design_details=None,
         text_layer=False,  # False if from VisionTransformer, True if just text Transformer
     ):
@@ -338,6 +485,7 @@ class Transformer(nn.Module):
         self.layers = layers
         self.text_layer = text_layer
         self.design_deatails = design_details
+        self.maple = design_details["maple"]
 
         if self.text_layer and (design_details is not None):
             self.resblocks = nn.ModuleList(
@@ -349,17 +497,28 @@ class Transformer(nn.Module):
                 ]
             )
         else:
-            # the resblocks for VisionTransformer, whose attn are replaced with VV later
-            self.resblocks = nn.ModuleList(
-                [
-                    ResidualAttentionBlock(
-                        width,
-                        heads,
-                        attn_mask,
-                    )
-                    for i in range(layers)
-                ]
-            )
+            if self.maple:
+                self.resblocks = nn.Sequential(
+                    *[
+                        ResidualAttentionBlock_MaPLe(
+                            width, heads, attn_mask, design_details, i=i
+                        )
+                        for i in range(layers)
+                    ]
+                )
+                pass
+            else:
+                # the resblocks for VisionTransformer, whose attn are replaced with VV later
+                self.resblocks = nn.ModuleList(
+                    [
+                        ResidualAttentionBlock(
+                            width,
+                            heads,
+                            attn_mask,
+                        )
+                        for i in range(layers)
+                    ]
+                )
 
     def ori_CLIP_with_patch_forward(self, x, out_layers):
         idx = 0
@@ -377,7 +536,7 @@ class Transformer(nn.Module):
 
     def AnomalyCLIP_forward(self, x, out_layers, ffn):
         idx = 0
-        out_tokens = []
+        out_tokens = []  # patch tokens
         for r in self.resblocks:
             idx += 1
             x = r(x, ffn=ffn)
@@ -388,18 +547,37 @@ class Transformer(nn.Module):
                     out_tokens.append(x)
         return x, out_tokens  # out_tokens: len==4, each size [1370, 8, 1024]
 
+    def AnomalyCLIP_MAPLE_forward(self, x, out_layers, ffn):
+        idx = 0
+        out_tokens = []  # patch tokens
+        for r in self.resblocks:
+            idx += 1
+            x_tuple = r(x, ffn=ffn)
+            (x, compound_prompts_deeper, counter) = x_tuple
+            if idx in out_layers:
+                if isinstance(x, list):
+                    out_tokens.append(x[0])  # difference
+                else:
+                    out_tokens.append(x)
+            x = x_tuple
+        return x, out_tokens  # out_tokens: len==4, each size [1370, 8, 1024]
+
     def forward(
         self, x: torch.Tensor, out_layers=[6, 12, 18, 24], DPAM_layer=None, ffn=False
     ):
         # visual encoder forward
         if not self.text_layer:
-            out_tokens = []
+            out_tokens = []  # patch tokens
 
             if DPAM_layer is None:
                 [x, x], out_tokens = self.ori_CLIP_with_patch_forward(x, out_layers)
                 return [x, x], out_tokens
             else:
-                x, out_tokens = self.AnomalyCLIP_forward(x, out_layers, ffn)
+                # returned by AnomalyCLip visual encoder
+                if self.maple:
+                    x, out_tokens = self.AnomalyCLIP_MAPLE_forward(x, out_layers, ffn)
+                else:
+                    x, out_tokens = self.AnomalyCLIP_forward(x, out_layers, ffn)
                 return x, out_tokens
 
         # text encoder forward
@@ -428,6 +606,7 @@ class VisionTransformer(nn.Module):
         layers: int,  # 24
         heads: int,  # 16
         output_dim: int,  # 768
+        design_details,
     ):
         super().__init__()
         self.input_resolution = input_resolution
@@ -447,7 +626,9 @@ class VisionTransformer(nn.Module):
         )  # [577, 1024]
         self.ln_pre = LayerNorm(width)
 
-        self.transformer = Transformer(width, layers, heads, need_weights=True)
+        self.transformer = Transformer(
+            width, layers, heads, design_details=design_details
+        )
         self.attn = None
         self.embed_dim = width
         self.num_heads = heads
@@ -460,11 +641,12 @@ class VisionTransformer(nn.Module):
         if DPAM_layer is not None:
             for i in range(
                 1, DPAM_layer
-            ):  # i [1, 19], inclusive <=> layer [6, 24] inclusive
+            ):  # i [-1, -19], inclusive <=> layer [6, 24] inclusive
                 # create v-v attention, which returns [v-v, original]
-                self.attn = Attention(
+                self.attn = VVAttention(
                     self.embed_dim, self.embed_dim, self.num_heads, True
                 )
+
                 self.attn.qkv.weight.data = self.transformer.resblocks[
                     -i
                 ].attn.in_proj_weight.clone()
@@ -477,6 +659,7 @@ class VisionTransformer(nn.Module):
                 self.attn.proj.bias.data = self.transformer.resblocks[
                     -i
                 ].attn.out_proj.bias.clone()
+
                 self.transformer.resblocks[-i].attn = self.attn
 
     @torch.no_grad()
@@ -505,6 +688,7 @@ class VisionTransformer(nn.Module):
             ],
             dim=1,
         )  # shape = [*, grid ** 2 + 1, width], [8, 1370, 1024]
+
         side = int((self.positional_embedding.shape[0] - 1) ** 0.5)  # 24
         new_side = int((x.shape[1] - 1) ** 0.5)  # 37
 
@@ -525,10 +709,9 @@ class VisionTransformer(nn.Module):
                 [self.positional_embedding[:1, :], new_pos[0]], 0
             )
 
-        pos = self.positional_embedding.to(x.dtype)
-        x = x + pos  # [8, 1370, 1024]
-        x = self.ln_pre(x)  # [8, 1370, 1024]
+        x = x + self.positional_embedding.to(x.dtype)  # [8, 1370, 1024]
 
+        x = self.ln_pre(x)  # [8, 1370, 1024]
         x = x.permute(1, 0, 2)  # NLD -> LND, [1370, 8, 1024]
 
         [x, x_ori], patch_tokens = self.transformer(
@@ -547,6 +730,144 @@ class VisionTransformer(nn.Module):
 
         # x_ori[0] must be the GLOBAL embedding
         # return shape: [8, 768], list=4*[8, 1370, 768]
+        return x_ori[0, :, :] @ self.proj, patch_tokens
+
+
+class VisionTransformer_MaPLe(nn.Module):
+    def __init__(
+        self,
+        input_resolution: int,
+        patch_size: int,
+        width: int,
+        layers: int,
+        heads: int,
+        output_dim: int,
+        design_details,
+    ):
+        super().__init__()
+        self.input_resolution = input_resolution
+        self.output_dim = output_dim
+        self.conv1 = nn.Conv2d(
+            in_channels=3,
+            out_channels=width,
+            kernel_size=patch_size,
+            stride=patch_size,
+            bias=False,
+        )
+        scale = width**-0.5
+        self.class_embedding = nn.Parameter(scale * torch.randn(width))
+        self.positional_embedding = nn.Parameter(
+            scale * torch.randn((input_resolution // patch_size) ** 2 + 1, width)
+        )
+        self.ln_pre = LayerNorm(width)
+
+        self.transformer = Transformer(
+            width, layers, heads, design_details=design_details
+        )
+        self.attn = None
+        self.embed_dim = width
+        self.num_heads = heads
+
+        self.ln_post = LayerNorm(width)
+        self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
+
+    @torch.no_grad()
+    def DAPM_replace(self, DPAM_layer):
+        if DPAM_layer is not None:
+            for i in range(
+                1, DPAM_layer
+            ):  # i [1, 19], inclusive <=> layer [6, 24] inclusive
+                # create v-v attention, which returns [v-v, original]
+                self.attn = VVAttention(
+                    self.embed_dim, self.embed_dim, self.num_heads, True
+                )
+                self.attn.qkv.weight.data = self.transformer.resblocks[
+                    -i
+                ].attn.in_proj_weight.clone()
+                self.attn.qkv.bias.data = self.transformer.resblocks[
+                    -i
+                ].attn.in_proj_bias.clone()
+                self.attn.proj.weight.data = self.transformer.resblocks[
+                    -i
+                ].attn.out_proj.weight.clone()
+                self.attn.proj.bias.data = self.transformer.resblocks[
+                    -i
+                ].attn.out_proj.bias.clone()
+                self.transformer.resblocks[-i].attn = self.attn
+
+    def forward(
+        self,
+        x: torch.Tensor,  # [8, 3, 518, 518]
+        features_list,
+        ori_patch=False,
+        proj_use=True,
+        DPAM_layer=None,
+        ffn=False,
+        # shared_ctx=None,
+        compound_deeper_prompts=None,
+    ):
+        x = self.conv1(x)  # shape = [*, width, grid, grid], [8, 1024, 37, 37]
+        x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
+        x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
+        x = torch.cat(
+            [
+                self.class_embedding.to(x.dtype)
+                + torch.zeros(
+                    x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
+                ),
+                x,
+            ],
+            dim=1,
+        )  # shape = [*, grid ** 2 + 1, width]
+
+        side = int((self.positional_embedding.shape[0] - 1) ** 0.5)  # 24
+        new_side = int((x.shape[1] - 1) ** 0.5)  # 37
+
+        # update the position embedding during inference for varied input size
+        if side != new_side:
+            new_pos = (
+                self.positional_embedding[1:, :]
+                .reshape(-1, side, side, x.shape[-1])
+                .permute(0, 3, 1, 2)
+            )
+            new_pos = torch.nn.functional.interpolate(
+                new_pos, (new_side, new_side), mode="bilinear"
+            )
+            new_pos = new_pos.reshape(-1, x.shape[-1], new_side * new_side).transpose(
+                1, 2
+            )
+            self.positional_embedding.data = torch.cat(
+                [self.positional_embedding[:1, :], new_pos[0]], 0
+            )
+
+        x = x + self.positional_embedding.to(x.dtype)
+
+        # # [TODO]: the first difference [NEED to create shared_ctx]
+        # visual_ctx = shared_ctx.expand(x.shape[0], -1, -1).half()
+        # x = torch.cat([x, visual_ctx], dim=1)
+
+        # Normal code as before
+        x = self.ln_pre(x)
+        x = x.permute(1, 0, 2)  # NLD -> LND
+
+        [[x, x_ori], cmp, counter], patch_tokens = self.transformer(
+            [x, compound_deeper_prompts, 0],
+            features_list,
+            DPAM_layer=DPAM_layer,
+            ffn=ffn,
+        )
+
+        patch_token_list = []
+        for patch_token in patch_tokens:
+            patch_token = (
+                self.ln_post(patch_token.permute(1, 0, 2)) @ self.proj
+            )  # LND -> NLD
+            patch_token_list.append(patch_token)
+        patch_tokens = patch_token_list
+
+        # x = x.permute(1, 0, 2)  # LND -> NLD
+        # x = self.ln_post(x[:, 0, :])
+
         return x_ori[0, :, :] @ self.proj, patch_tokens
 
 
@@ -570,6 +891,7 @@ class AnomalyCLIP(nn.Module):
         super().__init__()
 
         self.context_length = context_length  # 77
+        self.maple = design_details["maple"]
 
         if isinstance(vision_layers, (tuple, list)):
             # NO!!!
@@ -584,14 +906,27 @@ class AnomalyCLIP(nn.Module):
         else:
             # arrive here
             vision_heads = vision_width // 64
-            self.visual = VisionTransformer(
-                input_resolution=image_resolution,
-                patch_size=vision_patch_size,
-                width=vision_width,
-                layers=vision_layers,
-                heads=vision_heads,
-                output_dim=embed_dim,
-            )
+            if self.maple:
+                self.visual = VisionTransformer_MaPLe(
+                    input_resolution=image_resolution,
+                    patch_size=vision_patch_size,
+                    width=vision_width,
+                    layers=vision_layers,
+                    heads=vision_heads,
+                    output_dim=embed_dim,
+                    design_details=design_details,
+                )
+                pass
+            else:
+                self.visual = VisionTransformer(
+                    input_resolution=image_resolution,
+                    patch_size=vision_patch_size,
+                    width=vision_width,
+                    layers=vision_layers,
+                    heads=vision_heads,
+                    output_dim=embed_dim,
+                    design_details=design_details,
+                )
 
         # what is this transformer for? (for processing text)
         self.transformer = Transformer(
@@ -654,22 +989,37 @@ class AnomalyCLIP(nn.Module):
     def encode_image(
         self,
         image,
-        feature_list=[],
+        feature_list=[],  # [6, 12, 18, 24]
         ori_patch=False,
         proj_use=True,
         DPAM_layer=None,
         ffn=False,
+        maple=False,
+        # shared_ctx=None,
+        compound_deeper_prompts=None,
     ):
         # return shape: global:[8, 768], local=4*[8, 1370=1+37*37, 768]
         # how is the global obtained?: x_ori[0, :, :] @ self.proj
-        return self.visual(
-            image.type(self.dtype),
-            feature_list,
-            ori_patch=ori_patch,  # False
-            proj_use=proj_use,  # True
-            DPAM_layer=DPAM_layer,  # 20
-            ffn=ffn,  # False
-        )
+        if maple:
+            return self.visual(
+                image.type(self.dtype),
+                feature_list,
+                ori_patch=ori_patch,  # False
+                proj_use=proj_use,  # True
+                DPAM_layer=DPAM_layer,  # 20
+                ffn=ffn,  # False
+                # shared_ctx=shared_ctx,
+                compound_deeper_prompts=compound_deeper_prompts,
+            )
+        else:
+            return self.visual(
+                image.type(self.dtype),
+                feature_list,
+                ori_patch=ori_patch,  # False
+                proj_use=proj_use,  # True
+                DPAM_layer=DPAM_layer,  # 20
+                ffn=ffn,  # False
+            )
 
     # NOT USED in the code
     def encode_text(self, text):
@@ -723,7 +1073,6 @@ class AnomalyCLIP(nn.Module):
 
     # NOT USED in the code
     def forward(self, image, text):
-        print("ever jhere???")
         image_features = self.encode_image(image)
         text_features = self.encode_text(text)
 

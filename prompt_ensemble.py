@@ -149,12 +149,9 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         configs
         """
         self.meta_net = args.meta_net
-        # self.meta_mean = args.meta_mean
-        self.meta_split = args.meta_split
-        self.morep = args.morep
+        self.maple = args.maple
         self.metanet_patch_and_global = args.metanet_patch_and_global
         self.metanet_patch_only = args.metanet_patch_only
-        self.reverse_learning = args.reverse_learning
         self.debug_mode = args.debug_mode
 
         """
@@ -186,47 +183,21 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         if self.meta_net:
             vis_dim = clip_model.visual.output_dim  # 768
 
-            if self.morep:
-                self.meta_net = nn.Sequential(
-                    OrderedDict(
-                        [
-                            ("linear1", nn.Linear(vis_dim, vis_dim // 16)),
-                            ("relu", nn.ReLU(inplace=True)),
-                            ("linear2", nn.Linear(vis_dim // 16, vis_dim // 16)),
-                            ("relu", nn.ReLU(inplace=True)),
-                            (
-                                "linear3",
-                                nn.Linear(
-                                    vis_dim // 16,
-                                    ctx_dim * 2 if self.meta_split else ctx_dim,
-                                ),
+            self.meta_net = nn.Sequential(
+                OrderedDict(
+                    [
+                        ("linear1", nn.Linear(vis_dim, vis_dim // 16)),
+                        ("relu", nn.ReLU(inplace=True)),
+                        (
+                            "linear2",
+                            nn.Linear(
+                                vis_dim // 16,
+                                ctx_dim,
                             ),
-                        ]
-                    )
+                        ),
+                    ]
                 )
-            else:
-                self.meta_net = nn.Sequential(
-                    OrderedDict(
-                        [
-                            ("linear1", nn.Linear(vis_dim, vis_dim // 16)),
-                            ("relu", nn.ReLU(inplace=True)),
-                            (
-                                "linear2",
-                                nn.Linear(
-                                    vis_dim // 16,
-                                    ctx_dim * 2 if self.meta_split else ctx_dim,
-                                ),
-                            ),
-                        ]
-                    )
-                )
-
-        """
-        Reverse Learning
-        """
-        if self.reverse_learning:
-            # TODO: a learning network
-            pass
+            )
 
         """
         normal/abnormal templates
@@ -312,12 +283,13 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             nn.init.normal_(single_para, std=0.02)
 
         """
-        NEVER USED!
+        Initialize coupling function for MAPLE
         """
-        # single_layer = nn.Linear(ctx_dim, 896)
-        # self.compound_prompt_projections = _get_clones(
-        #     single_layer, self.compound_prompts_depth - 1
-        # )
+        if self.maple:
+            single_layer = nn.Linear(ctx_dim, 1024)
+            self.compound_prompt_projections = _get_clones(
+                single_layer, self.compound_prompts_depth - 1
+            )  # len ==8
 
         """
         initialize learnable word embeddings
@@ -403,6 +375,15 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.register_buffer("tokenized_prompts_pos", tokenized_prompts_pos)
         self.register_buffer("tokenized_prompts_neg", tokenized_prompts_neg)
 
+        # self.proj = nn.Linear(ctx_dim, 768)
+        # self.proj.half()
+        self.visual_deep_prompts = None
+        if self.maple:
+            visual_deep_prompts = []
+            for index, layer in enumerate(self.compound_prompt_projections):
+                visual_deep_prompts.append(layer(self.compound_prompts_text[index]))
+            self.visual_deep_prompts = visual_deep_prompts  # [4, 1024] * 8
+
     def forward(self, image_features=None, patch_features=None, cls_id=None):
         # image_features.shape: [bs, 768]
         # patch_features: 4*[bs, 1370, 768]
@@ -450,23 +431,13 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
             bs, _ = bias.shape
 
-            # if self.meta_mean:
-            #     bs = 1
-
             ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)
             ctx_neg = ctx_neg.unsqueeze(0)
 
             bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
 
-            # if self.meta_mean:
-            #     bias = torch.mean(bias, dim=0, keepdim=True)
-
-            if self.meta_split:
-                ctx_pos = ctx_pos + bias[..., : self.ctx_dim]  # (bs, 1, 1, 12, 768)
-                ctx_neg = ctx_neg + bias[..., self.ctx_dim :]  # (bs, 1, 1, 12, 768)
-            else:
-                ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
-                ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
+            ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
+            ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
 
             prefix_shape = prefix_pos.shape
             suffix_shape = suffix_pos.shape
@@ -533,10 +504,6 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
         prompts = torch.cat([prompts_pos, prompts_neg], dim=0)  # [2 or 2*bs, 77, 768]
 
-        if self.reverse_learning:
-            # TODO: generate image features from patch
-            pass
-
         """
         prompts: [2 or 2*bs, 77, 768], 2 is pos&neg, embeddings with 12 Xs replaced by learnables already
 
@@ -544,4 +511,5 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
         learnable token/text embeddings: [4, 768] * 8
         """
+
         return prompts, tokenized_prompts, self.compound_prompts_text

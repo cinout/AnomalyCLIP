@@ -61,6 +61,8 @@ def test(args):
         "Prompt_length": args.n_ctx,
         "learnabel_text_embedding_depth": args.depth,
         "learnabel_text_embedding_length": args.t_n_ctx,
+        "maple": args.maple,
+        # "maple_length": 2,
     }
 
     model, _ = AnomalyCLIP_lib.load(
@@ -131,8 +133,16 @@ def test(args):
 
         with torch.no_grad():
             image_features, patch_features = model.encode_image(
-                image, features_list, DPAM_layer=20
+                image,
+                features_list,
+                DPAM_layer=20,
+                maple=args.maple,
+                compound_deeper_prompts=prompt_learner.visual_deep_prompts,
             )
+            if args.maple:
+                patch_features = [
+                    feature[:, : -args.t_n_ctx, :] for feature in patch_features
+                ]
             image_features = image_features / image_features.norm(dim=-1, keepdim=True)
 
             if args.meta_net:
@@ -355,15 +365,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=111, help="random seed")
     parser.add_argument("--sigma", type=int, default=4, help="zero shot")
     parser.add_argument("--meta_net", action="store_true")
-    parser.add_argument("--meta_mean", action="store_true", help="use mean of batch")
-    parser.add_argument(
-        "--meta_split",
-        action="store_true",
-        help="double the output dim, and divide into halves",
-    )
-    parser.add_argument(
-        "--morep", action="store_true", help="more parameters in meta_net"
-    )
+    parser.add_argument("--maple", action="store_true")
     parser.add_argument(
         "--metanet_patch_and_global",
         action="store_true",
@@ -373,11 +375,6 @@ if __name__ == "__main__":
         "--metanet_patch_only",
         action="store_true",
         help="use patch features only in meta_net",
-    )
-    parser.add_argument(
-        "--reverse_learning",
-        action="store_true",
-        help="use the similarity between tokenized text and post-processed image feature for training/eval",
     )
     parser.add_argument(
         "--debug_mode",

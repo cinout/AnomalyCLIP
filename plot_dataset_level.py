@@ -14,7 +14,7 @@ import seaborn as sns
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# TODO: update
+
 datasets = ["btad"]
 categories_by_dataset = {"btad": ["01", "02", "03"]}
 
@@ -120,7 +120,6 @@ for dataset in datasets:
         legend_name = "[t] " + category + "_-"
         category_to_label[FIXED_LABELS + idx * LABELS_4each_CATEGORY + 3] = legend_name
 
-    # TODO: update
     category_to_color = {
         0: "#0D0D04",
         1: "#0D0D04",
