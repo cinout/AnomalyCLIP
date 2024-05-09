@@ -11,7 +11,7 @@
 
 #SBATCH --job-name="t_visa"
 #SBATCH --account=punim1623
-#SBATCH --time=0-00:08:00
+#SBATCH --time=0-04:08:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
