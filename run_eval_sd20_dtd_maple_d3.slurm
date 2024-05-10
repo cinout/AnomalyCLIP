@@ -2,12 +2,12 @@
 
 ###SBATCH --partition=gpu-a100
 
-###SBATCH --partition=feit-gpu-a100
-###SBATCH --qos=feit
+#SBATCH --partition=feit-gpu-a100
+#SBATCH --qos=feit
 
-#SBATCH --partition=deeplearn
-#SBATCH --qos=gpgpudeeplearn
-#SBATCH --constraint=dlg4|dlg5
+###SBATCH --partition=deeplearn
+###SBATCH --qos=gpgpudeeplearn
+###SBATCH --constraint=dlg4|dlg5
 
 ### FIXME: update job-name
 #SBATCH --job-name="e_dtd"
@@ -34,11 +34,11 @@ SEED=20
 python test.py \
   --dataset dtd \
   --data_path data/dtd \
-  --save_path ./results/dtd/0shot_maple_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_maple_$SEED/epoch_15.pth \
+  --save_path ./results/dtd/0shot_maple_d3_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_maple_d3_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
-  --depth 9 \
+  --depth 3 \
   --n_ctx 12 \
   --t_n_ctx 4 \
   --seed $SEED \
