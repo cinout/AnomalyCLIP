@@ -168,10 +168,11 @@ class ResidualAttentionBlock_MaPLe(nn.Module):
             "learnabel_text_embedding_length"
         ]  # 4
 
-        # if i == 0:
-        #     self.first_layer = True
-        # else:
-        #     self.first_layer = False
+        # TODO: if aligned
+        if i == 0:
+            self.first_layer = True
+        else:
+            self.first_layer = False
 
     def attention(self, x: torch.Tensor):
         self.attn_mask = (
@@ -198,9 +199,10 @@ class ResidualAttentionBlock_MaPLe(nn.Module):
         compound_prompts_deeper = inputs[1]  # [4, 1024] * 8
         counter = inputs[2]
 
-        # if not self.first_layer:
+        # TODO: if aligned
         if (
-            len(compound_prompts_deeper) > 0
+            not self.first_layer
+            and len(compound_prompts_deeper) > 0
             and counter <= len(compound_prompts_deeper) - 1
         ):
             # Remove the outputs produced by learnable tokens of previous layer
@@ -231,7 +233,10 @@ class ResidualAttentionBlock_MaPLe(nn.Module):
             # Add the learnable tokens of this layer with the input, by replacing previous
             # layer learnable tokens
             if isinstance(x, list):
-                x = [torch.cat([vector, visual_context.to(vector.device)], dim=0) for vector in prefix]
+                x = [
+                    torch.cat([vector, visual_context.to(vector.device)], dim=0)
+                    for vector in prefix
+                ]
             else:
                 x = torch.cat([prefix, visual_context.to(prefix.device)], dim=0)
 
@@ -437,7 +442,7 @@ class ResidualAttentionBlock_learnable_token(nn.Module):
         # singl path before "d"
         else:
             # ARRIVED HERE
-            # this is where text transformer works
+            # this is where TEXT transformer works
             x = inputs[0]  # [77, 2 or 2*bs, 768]
 
             compound_prompts_deeper = inputs[1]  #  [4, 768] * 8

@@ -10,10 +10,10 @@ python train.py \
   --epoch 1 \
   --save_freq 1 \
   --save_path ./checkpoints/writer_pretrained_mvtec_baseline_$SEED/ \
-  --depth 3 \
+  --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
   --seed $SEED \
   --maple \
-  --meta_net \
-  --metanet_patch_and_global \
+  # --meta_net \
+  # --metanet_patch_and_global \
