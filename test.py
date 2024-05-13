@@ -116,7 +116,7 @@ def test(args):
         stored_features["prior_text_feature"] = text_features
         all_results = []
 
-    for idx, items in enumerate(tqdm(test_dataloader)):
+    for _, items in enumerate(tqdm(test_dataloader)):
         image = items["img"].to(device)
         cls_name = items["cls_name"]
         cls_id = items["cls_id"]
@@ -175,7 +175,7 @@ def test(args):
 
                     if args.visual_ae:
                         patch_feature = prompt_learner.process_patch_features(
-                            patch_feature, idx
+                            patch_feature, patch_idx
                         )
 
                     if args.debug_mode:
