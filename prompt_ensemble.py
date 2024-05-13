@@ -149,16 +149,16 @@ class VisualAE(nn.Module):
         self.dropout = nn.Dropout(0.2)
 
         self.enc_conv1 = nn.Conv2d(
-            in_channels=in_dim, out_channels=in_dim, kernel_size=2
+            in_channels=in_dim, out_channels=in_dim, kernel_size=2, stride=2
         )
         self.enc_conv2 = nn.Conv2d(
-            in_channels=in_dim, out_channels=in_dim * 2, kernel_size=2
+            in_channels=in_dim, out_channels=in_dim * 2, kernel_size=2, stride=1
         )
         self.dec_conv1 = nn.ConvTranspose2d(
-            in_channels=in_dim * 2, out_channels=in_dim, kernel_size=2
+            in_channels=in_dim * 2, out_channels=in_dim, kernel_size=2, stride=1
         )
         self.dec_conv2 = nn.ConvTranspose2d(
-            in_channels=in_dim, out_channels=in_dim, kernel_size=2
+            in_channels=in_dim, out_channels=in_dim, kernel_size=2, stride=2
         )
 
     def forward(self, x):
@@ -168,14 +168,14 @@ class VisualAE(nn.Module):
         x = self.dropout(x)
 
         x = self.enc_conv2(x)
-        x = self.relu(x)  # [8, 1536, 35, 35]
+        x = self.relu(x)  # [8, 1536, 17, 17]
 
         # decode
         x = self.dec_conv1(x)
         x = self.relu(x)
         x = self.dropout(x)
 
-        x = self.dec_conv2(x)  # [8, 768, 37, 37]
+        x = self.dec_conv2(x)  # [8, 768, 36, 36]
 
         return x
 
