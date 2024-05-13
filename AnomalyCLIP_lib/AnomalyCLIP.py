@@ -168,7 +168,6 @@ class ResidualAttentionBlock_MaPLe(nn.Module):
             "learnabel_text_embedding_length"
         ]  # 4
 
-        # TODO: if aligned
         if i == 0:
             self.first_layer = True
         else:
@@ -199,7 +198,6 @@ class ResidualAttentionBlock_MaPLe(nn.Module):
         compound_prompts_deeper = inputs[1]  # [4, 1024] * 8
         counter = inputs[2]
 
-        # TODO: if aligned
         if (
             not self.first_layer
             and len(compound_prompts_deeper) > 0

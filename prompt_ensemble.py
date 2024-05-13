@@ -141,6 +141,45 @@ def _get_clones(module, N):
     return nn.ModuleList([deepcopy(module) for i in range(N)])
 
 
+class VisualAE(nn.Module):
+    def __init__(self, in_dim=768):
+        super().__init__()
+
+        self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(0.2)
+
+        self.enc_conv1 = nn.Conv2d(
+            in_channels=in_dim, out_channels=in_dim, kernel_size=2
+        )
+        self.enc_conv2 = nn.Conv2d(
+            in_channels=in_dim, out_channels=in_dim * 2, kernel_size=2
+        )
+        self.dec_conv1 = nn.ConvTranspose2d(
+            in_channels=in_dim * 2, out_channels=in_dim, kernel_size=2
+        )
+        self.dec_conv2 = nn.ConvTranspose2d(
+            in_channels=in_dim, out_channels=in_dim, kernel_size=2
+        )
+
+    def forward(self, x):
+        # encode
+        x = self.enc_conv1(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+
+        x = self.enc_conv2(x)
+        x = self.relu(x)  # [8, 1536, 35, 35]
+
+        # decode
+        x = self.dec_conv1(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+
+        x = self.dec_conv2(x)  # [8, 768, 37, 37]
+
+        return x
+
+
 class AnomalyCLIP_PromptLearner(nn.Module):
     def __init__(self, clip_model, design_details, args):
         super().__init__()
@@ -153,6 +192,16 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.metanet_patch_and_global = args.metanet_patch_and_global
         self.metanet_patch_only = args.metanet_patch_only
         self.debug_mode = args.debug_mode
+        self.visual_ae = args.visual_ae
+        self.features_list = args.features_list
+        vis_dim = clip_model.visual.output_dim  # 768
+
+        """
+        visual AE
+        """
+        if self.visual_ae:
+            autoencoder = VisualAE(in_dim=vis_dim)
+            self.aes = _get_clones(autoencoder, len(self.features_list))  # len == 4
 
         """
         Unused
@@ -181,7 +230,6 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         """
 
         if self.meta_net:
-            vis_dim = clip_model.visual.output_dim  # 768
 
             self.meta_net = nn.Sequential(
                 OrderedDict(
@@ -383,6 +431,32 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             for index, layer in enumerate(self.compound_prompt_projections):
                 visual_deep_prompts.append(layer(self.compound_prompts_text[index]))
             self.visual_deep_prompts = visual_deep_prompts  # [4, 1024] * 8
+
+    def process_patch_features(self, patch_feature, idx):
+        # patch_feature: [bs, 1370, 768]
+        bs, n, c = patch_feature.shape
+
+        # get global token
+        global_token = patch_feature[:, 0, :]
+
+        # reshape feature map
+        patch_feature = patch_feature[:, 1:, :]
+        side = int((n - 1) ** 0.5)
+        patch_feature = patch_feature.reshape(bs, side, side, -1).permute(
+            0, 3, 1, 2
+        )  # [bs, c, side, side]
+
+        # process by AE
+        ae = self.aes[idx]
+        patch_feature = ae(patch_feature)
+
+        # reshape back
+        patch_feature = patch_feature.reshape(bs, c, -1).permute(
+            0, 2, 1
+        )  # [bs, n-1, c]
+        patch_feature = torch.cat([global_token.unsqueeze(1), patch_feature], dim=1)
+
+        return patch_feature
 
     def forward(self, image_features=None, patch_features=None, cls_id=None):
         # image_features.shape: [bs, 768]

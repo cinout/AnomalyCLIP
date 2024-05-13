@@ -155,6 +155,11 @@ def train(args):
                         dim=-1, keepdim=True
                     )  # [bs, 1370, 768]
 
+                    if args.visual_ae:
+                        patch_feature = prompt_learner.process_patch_features(
+                            patch_feature, idx
+                        )
+
                     # calculate patch-level similarity
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(
                         patch_feature, text_features
@@ -273,6 +278,11 @@ if __name__ == "__main__":
         "--debug_mode",
         action="store_true",
         help="",
+    )
+    parser.add_argument(
+        "--visual_ae",
+        action="store_true",
+        help="use AE after the four selected stages of visual encoder",
     )
     args = parser.parse_args()
     print(

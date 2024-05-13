@@ -173,6 +173,11 @@ def test(args):
                         dim=-1, keepdim=True
                     )
 
+                    if args.visual_ae:
+                        patch_feature = prompt_learner.process_patch_features(
+                            patch_feature, idx
+                        )
+
                     if args.debug_mode:
                         patch_features_norm.append(patch_feature[0, 1:, :])
 
@@ -380,6 +385,11 @@ if __name__ == "__main__":
         "--debug_mode",
         action="store_true",
         help="",
+    )
+    parser.add_argument(
+        "--visual_ae",
+        action="store_true",
+        help="use AE after the four selected stages of visual encoder",
     )
 
     args = parser.parse_args()
