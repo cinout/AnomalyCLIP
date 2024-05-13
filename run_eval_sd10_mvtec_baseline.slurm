@@ -9,9 +9,10 @@
 #SBATCH --qos=gpgpudeeplearn
 #SBATCH --constraint=dlg4|dlg5
 
-#SBATCH --job-name="t_mvtec"
+### FIXME: update job-name
+#SBATCH --job-name="e_mvtec"
 #SBATCH --account=punim1623
-#SBATCH --time=0-04:08:00
+#SBATCH --time=0-03:00:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -21,34 +22,24 @@
 
 #SBATCH --mem=60G
 
-#### export WORLD_SIZE=2   ### FIXME: update world size: nodes x ntasks-per-node
-#### export MASTER_PORT=28400
-#### echo ">>> NODELIST="${SLURM_NODELIST}
-#### master_addr=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
-#### export MASTER_ADDR=$master_addr
-#### echo ">>> MASTER_ADDR="$MASTER_ADDR
-
 module purge
 
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=20
+SEED=10
 
-# FIXME: update save_path
+# FIXME: update save_path, checkpoint_path
 
-python train.py \
+python test.py \
   --dataset mvtec \
-  --train_data_path data/mvtec \
+  --data_path data/mvtec \
+  --save_path ./results/mvtec/0shot_visualaetighter_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_visa_visualaetighter_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
-  --batch_size 8 \
-  --print_freq 1 \
-  --epoch 15 \
-  --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec_visualaetighter_$SEED/ \
   --depth 9 \
-  --n_ctx 12\
+  --n_ctx 12 \
   --t_n_ctx 4 \
   --seed $SEED \
   --visual_ae \
