@@ -77,6 +77,7 @@ def test(args):
         target_transform=target_transform,
         dataset_name=args.dataset,
     )
+
     test_dataloader = torch.utils.data.DataLoader(
         test_data, batch_size=1, shuffle=False
     )
@@ -116,14 +117,16 @@ def test(args):
         stored_features["prior_text_feature"] = text_features
         all_results = []
 
-    for _, items in enumerate(tqdm(test_dataloader)):
+    for count, items in enumerate(tqdm(test_dataloader)):
+
         image = items["img"].to(device)
         cls_name = items["cls_name"]
         cls_id = items["cls_id"]
         gt_mask = items["img_mask"]
-        gt_mask[gt_mask > 0.5], gt_mask[gt_mask <= 0.5] = 1, 0
+        gt_mask[gt_mask > 0.5], gt_mask[gt_mask <= 0.5] = 1, 0  # [1, 1, 518, 518]
         results[cls_name[0]]["imgs_masks"].append(gt_mask)  # px
-        results[cls_name[0]]["gt_sp"].extend(items["anomaly"].detach().cpu())
+        image_anomaly = items["anomaly"].detach().cpu()
+        results[cls_name[0]]["gt_sp"].extend(image_anomaly)
 
         if args.debug_mode:
             content = dict()

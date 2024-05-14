@@ -1,6 +1,14 @@
-from sklearn.metrics import auc, roc_auc_score, average_precision_score, f1_score, precision_recall_curve, pairwise
+from sklearn.metrics import (
+    auc,
+    roc_auc_score,
+    average_precision_score,
+    f1_score,
+    precision_recall_curve,
+    pairwise,
+)
 import numpy as np
 from skimage import measure
+
 
 def cal_pro_score(masks, amaps, max_step=200, expect_fpr=0.3):
     # ref: https://github.com/gudovskiy/cflow-ad/blob/master/train.py
@@ -30,13 +38,13 @@ def cal_pro_score(masks, amaps, max_step=200, expect_fpr=0.3):
 
 
 def image_level_metrics(results, obj, metric):
-    gt = results[obj]['gt_sp']
-    pr = results[obj]['pr_sp']
+    gt = results[obj]["gt_sp"]
+    pr = results[obj]["pr_sp"]
     gt = np.array(gt)
     pr = np.array(pr)
-    if metric == 'image-auroc':
+    if metric == "image-auroc":
         performance = roc_auc_score(gt, pr)
-    elif metric == 'image-ap':
+    elif metric == "image-ap":
         performance = average_precision_score(gt, pr)
 
     return performance
@@ -44,17 +52,21 @@ def image_level_metrics(results, obj, metric):
 
 
 def pixel_level_metrics(results, obj, metric):
-    gt = results[obj]['imgs_masks']
-    pr = results[obj]['anomaly_maps']
+    gt = results[obj]["imgs_masks"]
+    pr = results[obj]["anomaly_maps"]
     gt = np.array(gt)
     pr = np.array(pr)
-    if metric == 'pixel-auroc':
+    if metric == "pixel-auroc":
         performance = roc_auc_score(gt.ravel(), pr.ravel())
-    elif metric == 'pixel-aupro':
+    elif metric == "pixel-aupro":
+        # TODO: remove this
+
         if len(gt.shape) == 4:
             gt = gt.squeeze(1)
         if len(pr.shape) == 4:
             pr = pr.squeeze(1)
+        print(f"np.unique(pr): {np.unique(pr)}")
+        print(f"gt.shape: {gt.shape}")
+        print(f"pr.shape: {pr.shape}")
         performance = cal_pro_score(gt, pr)
     return performance
-    
