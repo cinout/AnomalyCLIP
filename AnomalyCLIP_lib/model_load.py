@@ -296,4 +296,9 @@ def compute_similarity(image_features, text_features, t=2):
         b_tx, 1, n_t, c
     )  # [bs, 1370, 2, 768]
     similarity = feats.sum(-1)  # [bs, 1370, 2]
+
+    # # TODO: remove this
+    # tmp_similarity = similarity[:, 1:, :]
+    # print(f">>>> tmp_similarity: {tmp_similarity}")
+
     return (similarity / 0.07).softmax(-1), None

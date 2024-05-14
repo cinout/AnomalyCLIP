@@ -34,8 +34,8 @@ SEED=20
 python test.py \
   --dataset sdd \
   --data_path data/sdd \
-  --save_path ./results/sdd/0shot_visualaetighter_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_visualaetighter_$SEED/epoch_15.pth \
+  --save_path ./results/sdd/0shot_visualaetanh_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_visualaetanh_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \

@@ -453,13 +453,15 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         ae = self.aes[idx]
         patch_feature = ae(patch_feature)
 
-        # # TODO: remove this later
-        # print(f"<<<< AFTER: { patch_feature.min(), patch_feature.max()}")
-
         # reshape back
         patch_feature = patch_feature.reshape(bs, c, -1).permute(
             0, 2, 1
         )  # [bs, n-1, c]
+
+        # # TODO: remove this later
+        # print(f"<<<< AFTER: {patch_feature.min(), patch_feature.max()}")
+        # print(patch_feature)
+
         patch_feature = torch.cat([global_token.unsqueeze(1), patch_feature], dim=1)
 
         return patch_feature

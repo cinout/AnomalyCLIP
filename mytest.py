@@ -2,21 +2,8 @@ import torch
 
 import random
 
-aa = [
-    "positional_embedding",
-    "text_projection",
-    "logit_scale",
-    "visual.class_embedding",
-    "visual.positional_embedding",
-    "visual.proj",
-    "visual.conv1.weight",
-    "visual.ln_pre.weight",
-    "visual.ln_pre.bias",
-]
-
-random.shuffle(aa)
-print(aa)
-
+aa = torch.tensor([5.7407, -7.0923])
+print(aa.softmax(-1))
 
 # text_features = torch.randint(0, 5, size=(1, 4, 4))
 # print(image_features)
