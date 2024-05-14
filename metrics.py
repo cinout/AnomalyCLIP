@@ -59,14 +59,10 @@ def pixel_level_metrics(results, obj, metric):
     if metric == "pixel-auroc":
         performance = roc_auc_score(gt.ravel(), pr.ravel())
     elif metric == "pixel-aupro":
-        # TODO: remove this
 
         if len(gt.shape) == 4:
             gt = gt.squeeze(1)
         if len(pr.shape) == 4:
             pr = pr.squeeze(1)
-        print(f"np.unique(pr): {np.unique(pr)}")
-        print(f"gt.shape: {gt.shape}")
-        print(f"pr.shape: {pr.shape}")
         performance = cal_pro_score(gt, pr)
     return performance

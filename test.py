@@ -78,6 +78,7 @@ def test(args):
         dataset_name=args.dataset,
     )
 
+    # # TODO: FALSE
     test_dataloader = torch.utils.data.DataLoader(
         test_data, batch_size=1, shuffle=False
     )
@@ -126,6 +127,8 @@ def test(args):
         gt_mask[gt_mask > 0.5], gt_mask[gt_mask <= 0.5] = 1, 0  # [1, 1, 518, 518]
         results[cls_name[0]]["imgs_masks"].append(gt_mask)  # px
         image_anomaly = items["anomaly"].detach().cpu()
+        # # TODO: remove
+        # print(f"image_path: {items['img_path']}; image_anomaly: {image_anomaly}")
         results[cls_name[0]]["gt_sp"].extend(image_anomaly)
 
         if args.debug_mode:
@@ -176,6 +179,12 @@ def test(args):
                         dim=-1, keepdim=True
                     )
 
+                    # # TODO: remove this later
+                    # tmp_patch_feature = patch_feature[:, 1:, :]
+                    # print(
+                    #     f">>>> BEFORE: { tmp_patch_feature.min(), tmp_patch_feature.max()}"
+                    # )
+
                     if args.visual_ae:
                         patch_feature = prompt_learner.process_patch_features(
                             patch_feature, patch_idx
@@ -196,6 +205,10 @@ def test(args):
                     ) / 2.0
                     anomaly_map_list.append(anomaly_map)
 
+                    # # TODO: remove
+                    # print(f">>>> anomaly_map: { anomaly_map.min(), anomaly_map.max()}")
+                    # print("--------------")
+
             if args.debug_mode:
                 patch_features_norm = torch.stack(patch_features_norm, dim=0)
                 patch_features_norm = torch.mean(patch_features_norm, dim=0)
@@ -212,6 +225,12 @@ def test(args):
 
             anomaly_map = torch.stack(anomaly_map_list)  # [4, 1, 518, 518]
             anomaly_map = anomaly_map.sum(dim=0)  # [1, 518, 518]
+
+            # # TODO: remove
+            # print(
+            #     f">>>> anomaly_map [all|RAW]: { anomaly_map.min(), anomaly_map.max()}"
+            # )
+
             anomaly_map = torch.stack(
                 [
                     torch.from_numpy(gaussian_filter(i, sigma=args.sigma))
@@ -219,6 +238,12 @@ def test(args):
                 ],
                 dim=0,
             )  # [1, 518, 518]
+
+            # # TODO: remove
+            # print(
+            #     f">>>> anomaly_map [all|SMOOTH]: { anomaly_map.min(), anomaly_map.max()}"
+            # )
+            # print("=============================")
 
             results[cls_name[0]]["anomaly_maps"].append(anomaly_map)
 

@@ -177,6 +177,9 @@ class VisualAE(nn.Module):
 
         x = self.dec_conv2(x)  # [8, 768, 36, 36]
 
+        # TODO: update to other
+        x = torch.tanh(x)
+
         return x
 
 
@@ -449,6 +452,9 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         # process by AE
         ae = self.aes[idx]
         patch_feature = ae(patch_feature)
+
+        # # TODO: remove this later
+        # print(f"<<<< AFTER: { patch_feature.min(), patch_feature.max()}")
 
         # reshape back
         patch_feature = patch_feature.reshape(bs, c, -1).permute(
