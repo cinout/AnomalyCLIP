@@ -11,5 +11,5 @@ python test.py \
   --t_n_ctx 4 \
   --seed $SEED \
   --visual_ae \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_visualaetighter_$SEED/epoch_15.pth \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_visualaetanh_$SEED/epoch_15.pth \
   # --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_$SEED/epoch_15.pth \

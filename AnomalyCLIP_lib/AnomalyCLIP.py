@@ -845,10 +845,6 @@ class VisionTransformer_MaPLe(nn.Module):
 
         x = x + self.positional_embedding.to(x.dtype)
 
-        # # [TODO]: the first difference [NEED to create shared_ctx]
-        # visual_ctx = shared_ctx.expand(x.shape[0], -1, -1).half()
-        # x = torch.cat([x, visual_ctx], dim=1)
-
         # Normal code as before
         x = self.ln_pre(x)
         x = x.permute(1, 0, 2)  # NLD -> LND
