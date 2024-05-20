@@ -46,12 +46,12 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec_metanetpag_nodice_$SEED/ \
+  --save_path ./checkpoints/pretrained_mvtec_metanetpag_lr1e4_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
   --seed $SEED \
-  --no_dice \
+  --learning_rate 0.0001 \
   --meta_net \
   --metanet_patch_and_global \
 
