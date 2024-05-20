@@ -10,7 +10,7 @@
 #SBATCH --constraint=dlg4|dlg5
 
 ### FIXME: update job-name
-#SBATCH --job-name="e_mvtec"
+#SBATCH --job-name="e_btad"
 #SBATCH --account=punim1623
 #SBATCH --time=0-03:00:00
 
@@ -32,16 +32,18 @@ SEED=10
 # FIXME: update save_path, checkpoint_path
 
 python test.py \
-  --dataset mvtec \
-  --data_path data/mvtec \
-  --save_path ./results/mvtec/0shot_baseline_nodice_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_visa_baseline_$SEED/epoch_15.pth \
+  --dataset btad \
+  --data_path data/btad \
+  --save_path ./results/btad/0shot_metanetpag_nodice_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetpag_nodice_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
   --seed $SEED \
+  --meta_net \
+  --metanet_patch_and_global \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
