@@ -10,7 +10,7 @@
 ###SBATCH --constraint=dlg4|dlg5
 
 ### FIXME: update job-name
-#SBATCH --job-name="e_visa"
+#SBATCH --job-name="e_dagm"
 #SBATCH --account=punim1623
 #SBATCH --time=0-02:10:00
 
@@ -27,23 +27,21 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=10
+SEED=20
 
 # FIXME: update save_path, checkpoint_path
 
 python test.py \
-  --dataset visa \
-  --data_path data/visa \
-  --save_path ./results/visa/0shot_metanetpag_nodice_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetpag_nodice_$SEED/epoch_15.pth \
+  --dataset dagm \
+  --data_path data/dagm \
+  --save_path ./results/dagm/0shot_baseline_nodice_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_nodice_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
   --seed $SEED \
-  --meta_net \
-  --metanet_patch_and_global \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
