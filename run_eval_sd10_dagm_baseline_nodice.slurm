@@ -34,7 +34,7 @@ SEED=10
 python test.py \
   --dataset dagm \
   --data_path data/dagm \
-  --save_path ./results/dagm/0shot_baseline_$SEED \
+  --save_path ./results/dagm/0shot_baseline_nodice_$SEED \
   --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_nodice_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
