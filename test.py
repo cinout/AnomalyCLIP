@@ -334,6 +334,16 @@ def test(args):
             tablefmt="pipe",
         )
     logger.info("\n%s", results)
+    logger.info(
+        "\n",
+        str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
+        "\t",
+        str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1)),
+        "\t",
+        str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
+        "\t",
+        str(np.round(np.mean(image_ap_list) * 100, decimals=1)),
+    )
 
 
 if __name__ == "__main__":
