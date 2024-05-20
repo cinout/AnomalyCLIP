@@ -12,4 +12,4 @@ python test.py \
   --seed $SEED \
   --visual_ae \
   --checkpoint_path ./checkpoints/pretrained_mvtec_visualaetanh_$SEED/epoch_15.pth \
-  # --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_$SEED/epoch_15.pth \
+  # --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_nodice_$SEED/epoch_15.pth \
