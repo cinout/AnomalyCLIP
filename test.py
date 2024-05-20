@@ -48,6 +48,7 @@ def generate_text_features(
 
 
 def test(args):
+
     img_size = args.image_size
     features_list = args.features_list
     dataset_dir = args.data_path
@@ -334,16 +335,21 @@ def test(args):
             tablefmt="pipe",
         )
     logger.info("\n%s", results)
-    logger.info(
-        "\n",
-        str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
-        "\t",
-        str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1)),
-        "\t",
-        str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
-        "\t",
-        str(np.round(np.mean(image_ap_list) * 100, decimals=1)),
-    )
+
+    # a concise version of mean output
+    with open(os.path.join(args.save_path, "log_mean.txt"), "a") as f:
+        f.writelines(
+            [
+                str(np.round(np.mean(pixel_auroc_list) * 100, decimals=1)),
+                "\t",
+                str(np.round(np.mean(pixel_aupro_list) * 100, decimals=1)),
+                "\t",
+                str(np.round(np.mean(image_auroc_list) * 100, decimals=1)),
+                "\t",
+                str(np.round(np.mean(image_ap_list) * 100, decimals=1)),
+                "\t",
+            ]
+        )
 
 
 if __name__ == "__main__":
