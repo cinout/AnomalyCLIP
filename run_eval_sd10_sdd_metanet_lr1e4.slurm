@@ -27,7 +27,7 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=20
+SEED=10
 
 # FIXME: update save_path, checkpoint_path
 
