@@ -187,7 +187,7 @@ def test(args):
 
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(
                         patch_feature, text_features
-                    )
+                    )  # contains softmax
                     similarity_map = AnomalyCLIP_lib.get_similarity_map(
                         similarity[:, 1:, :], args.image_size
                     )  # [1, 518, 518, 2]

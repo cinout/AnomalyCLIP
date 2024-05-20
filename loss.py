@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from math import exp
 
+
 class FocalLoss(nn.Module):
     """
     copy from: https://github.com/Hsuxu/Loss_ToolBox-PyTorch/blob/master/FocalLoss/FocalLoss.py
@@ -18,7 +19,15 @@ class FocalLoss(nn.Module):
     :param size_average: (bool, optional) By default, the losses are averaged over each loss element in the batch.
     """
 
-    def __init__(self, apply_nonlin=None, alpha=None, gamma=2, balance_index=0, smooth=1e-5, size_average=True):
+    def __init__(
+        self,
+        apply_nonlin=None,
+        alpha=None,
+        gamma=2,
+        balance_index=0,
+        smooth=1e-5,
+        size_average=True,
+    ):
         super(FocalLoss, self).__init__()
         self.apply_nonlin = apply_nonlin
         self.alpha = alpha
@@ -29,7 +38,7 @@ class FocalLoss(nn.Module):
 
         if self.smooth is not None:
             if self.smooth < 0 or self.smooth > 1.0:
-                raise ValueError('smooth value should be in [0,1]')
+                raise ValueError("smooth value should be in [0,1]")
 
     def forward(self, logit, target):
         if self.apply_nonlin is not None:
@@ -57,7 +66,7 @@ class FocalLoss(nn.Module):
             alpha[self.balance_index] = self.alpha
 
         else:
-            raise TypeError('Not support alpha type')
+            raise TypeError("Not support alpha type")
 
         if alpha.device != logit.device:
             alpha = alpha.to(logit.device)
@@ -71,7 +80,8 @@ class FocalLoss(nn.Module):
 
         if self.smooth:
             one_hot_key = torch.clamp(
-                one_hot_key, self.smooth / (num_class - 1), 1.0 - self.smooth)
+                one_hot_key, self.smooth / (num_class - 1), 1.0 - self.smooth
+            )
         pt = (one_hot_key * logit).sum(1) + self.smooth
         logpt = pt.log()
 
@@ -93,18 +103,23 @@ class BinaryDiceLoss(nn.Module):
     def forward(self, input, targets):
         # 获取每个批次的大小 N
         N = targets.size()[0]
+
         # 平滑变量
         smooth = 1
+
         # 将宽高 reshape 到同一纬度
         input_flat = input.view(N, -1)
         targets_flat = targets.view(N, -1)
 
         intersection = input_flat * targets_flat
-        N_dice_eff = (2 * intersection.sum(1) + smooth) / (input_flat.sum(1) + targets_flat.sum(1) + smooth)
+        N_dice_eff = (2 * intersection.sum(1) + smooth) / (
+            input_flat.sum(1) + targets_flat.sum(1) + smooth
+        )
         # 计算一个批次中平均每张图的损失
         loss = 1 - N_dice_eff.sum() / N
         return loss
-    
+
+
 def smooth(arr, lamda1):
     new_array = arr
     arr2 = torch.zeros_like(arr)
@@ -117,9 +132,10 @@ def smooth(arr, lamda1):
     loss = (torch.sum((arr2 - arr) ** 2) + torch.sum((new_array2 - new_array) ** 2)) / 2
     return lamda1 * loss
 
+
 def sparsity(arr, target, lamda2):
     if target == 0:
         loss = torch.mean(torch.norm(arr, dim=0))
     else:
-        loss = torch.mean(torch.norm(1-arr, dim=0))
+        loss = torch.mean(torch.norm(1 - arr, dim=0))
     return lamda2 * loss

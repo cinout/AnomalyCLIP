@@ -9,7 +9,7 @@
 ###SBATCH --qos=gpgpudeeplearn
 ###SBATCH --constraint=dlg3|dlg4|dlg5
 
-#SBATCH --job-name="t_mvtec"
+#SBATCH --job-name="t_visa"
 #SBATCH --account=punim1623
 #SBATCH --time=0-04:00:00
 
@@ -33,25 +33,25 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=20
+SEED=10
 
 # FIXME: update save_path
 
 python train.py \
-  --dataset mvtec \
-  --train_data_path data/mvtec \
+  --dataset visa \
+  --train_data_path data/visa \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --batch_size 8 \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec_visualaetanh_$SEED/ \
+  --save_path ./checkpoints/pretrained_visa_baseline_nodice_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
   --seed $SEED \
-  --visual_ae \
+  --no_dice \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s

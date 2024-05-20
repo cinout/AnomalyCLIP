@@ -67,6 +67,7 @@ def train(args):
     )
 
     # losses
+
     loss_focal = FocalLoss()
     loss_dice = BinaryDiceLoss()
 
@@ -140,10 +141,12 @@ def train(args):
 
             image_loss = F.cross_entropy(
                 text_probs, label.long().to(device)
-            )  #  no shape
+            )  #  no shape # contains softmax
+
             # image_loss = F.cross_entropy(
             #     text_probs.squeeze(), label.long().to(device)
             # )  #  no shape
+
             image_loss_list.append(image_loss.item())
 
             #########################################################################
@@ -163,7 +166,7 @@ def train(args):
                     # calculate patch-level similarity
                     similarity, _ = AnomalyCLIP_lib.compute_similarity(
                         patch_feature, text_features
-                    )  # [bs, 1370, 2]
+                    )  # [bs, 1370, 2] # contains softmax
 
                     # upsample anomaly map
                     similarity_map = AnomalyCLIP_lib.get_similarity_map(
@@ -176,9 +179,11 @@ def train(args):
 
             loss = 0
             for i in range(len(similarity_map_list)):
+                # both losses are averaged over the batch
                 loss += loss_focal(similarity_map_list[i], gt)
-                loss += loss_dice(similarity_map_list[i][:, 1, :, :], gt)
-                loss += loss_dice(similarity_map_list[i][:, 0, :, :], 1 - gt)
+                if not args.no_dice:
+                    loss += loss_dice(similarity_map_list[i][:, 1, :, :], gt)
+                    loss += loss_dice(similarity_map_list[i][:, 0, :, :], 1 - gt)
 
             optimizer.zero_grad()
             total_loss = loss + image_loss
@@ -284,7 +289,14 @@ if __name__ == "__main__":
         action="store_true",
         help="use AE after the four selected stages of visual encoder",
     )
+    parser.add_argument(
+        "--no_dice",
+        action="store_true",
+        help="don't use dice loss",
+    )
+
     args = parser.parse_args()
+
     print(
         "\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items()))
     )
