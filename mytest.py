@@ -2,11 +2,12 @@ import torch
 
 import random
 
-aa = torch.tensor([3.2973, -4.1732])
-aa = (aa / 0.07).softmax(-1)
-print(aa)
-result = (aa[1] + 1 - aa[0]) / 2
-print(result)
+aa = torch.tensor([0.01, -0.01, 0.08, 0.40, -0.5])
+bb = torch.tensor([100.01, -98.01, 99.01, -101.01, 97.01])
+
+print(torch.std(aa))
+print(torch.std(bb))
+
 
 # text_features = torch.randint(0, 5, size=(1, 4, 4))
 # print(image_features)

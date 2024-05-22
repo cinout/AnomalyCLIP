@@ -79,6 +79,8 @@ def test(args):
         dataset_name=args.dataset,
     )
 
+    # [TODO]: change to False
+
     test_dataloader = torch.utils.data.DataLoader(
         test_data, batch_size=1, shuffle=False
     )
@@ -127,6 +129,10 @@ def test(args):
         gt_mask[gt_mask > 0.5], gt_mask[gt_mask <= 0.5] = 1, 0  # [1, 1, 518, 518]
         results[cls_name[0]]["imgs_masks"].append(gt_mask)  # px
         image_anomaly = items["anomaly"].detach().cpu()
+
+        # # [TODO]: comment out
+        # image_path = items["img_path"][0]
+        # print(f"image_path: {image_path}, image_anomaly: {image_anomaly[0]}")
 
         results[cls_name[0]]["gt_sp"].extend(image_anomaly)
 
@@ -178,10 +184,27 @@ def test(args):
                         dim=-1, keepdim=True
                     )
 
+                    # # [TODO]: comment out
+                    # patch_feature_tmp = patch_feature[:, 1:, :]  # [1, 1369, 768]
+                    # patch_feature_tmp = patch_feature_tmp[0]  # [1369, 768]
+                    # patch_feature_tmp = F.normalize(patch_feature_tmp, dim=0)
+                    # std_for_each_channel = torch.std(patch_feature_tmp, dim=0)
+                    # # print(f"std_for_each_channel [BEFORE]\n", std_for_each_channel)
+                    # print(f"std_mean [BEFORE]: {std_for_each_channel.mean()}")
+
                     if args.visual_ae:
                         patch_feature = prompt_learner.process_patch_features(
                             patch_feature, patch_idx
                         )
+
+                        # # [TODO]: comment out
+                        # patch_feature_tmp = patch_feature[:, 1:, :]  # [1, 1369, 768]
+                        # patch_feature_tmp = patch_feature_tmp[0]
+                        # patch_feature_tmp = F.normalize(patch_feature_tmp, dim=0)
+                        # std_for_each_channel = torch.std(patch_feature_tmp, dim=0)
+                        # # print(f"std_for_each_channel [AFTER]\n", std_for_each_channel)
+                        # print(f"std_mean [AFTER]: {std_for_each_channel.mean()}")
+                        # print("----------------")
 
                     if args.debug_mode:
                         patch_features_norm.append(patch_feature[0, 1:, :])
@@ -197,6 +220,9 @@ def test(args):
                         similarity_map[..., 1] + 1 - similarity_map[..., 0]
                     ) / 2.0
                     anomaly_map_list.append(anomaly_map)
+
+                # # [TODO]: comment out
+                # print("================")
 
             if args.debug_mode:
                 patch_features_norm = torch.stack(patch_features_norm, dim=0)
