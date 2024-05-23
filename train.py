@@ -132,22 +132,19 @@ def train(args):
                 dim=-1, keepdim=True
             )  # [1 or bs, 2, 768]
 
-            # Apply DPAM surgery
-            text_probs = image_features.unsqueeze(1) @ text_features.permute(
-                0, 2, 1
-            )  # [8, 1, 2], the same text_features are applied to 8 images
+            if not args.no_imageloss:
+                # Apply DPAM surgery
+                text_probs = image_features.unsqueeze(1) @ text_features.permute(
+                    0, 2, 1
+                )  # [8, 1, 2], the same text_features are applied to 8 images
 
-            text_probs = text_probs[:, 0, ...] / 0.07  # [8, 2]
+                text_probs = text_probs[:, 0, ...] / 0.07  # [8, 2]
 
-            image_loss = F.cross_entropy(
-                text_probs, label.long().to(device)
-            )  #  no shape # contains softmax
+                image_loss = F.cross_entropy(
+                    text_probs, label.long().to(device)
+                )  #  no shape # contains softmax
 
-            # image_loss = F.cross_entropy(
-            #     text_probs.squeeze(), label.long().to(device)
-            # )  #  no shape
-
-            image_loss_list.append(image_loss.item())
+                image_loss_list.append(image_loss.item())
 
             #########################################################################
             similarity_map_list = []
@@ -186,7 +183,12 @@ def train(args):
                     loss += loss_dice(similarity_map_list[i][:, 0, :, :], 1 - gt)
 
             optimizer.zero_grad()
-            total_loss = loss + image_loss
+
+            if args.no_imageloss:
+                total_loss = loss
+            else:
+                total_loss = loss + image_loss
+
             total_loss.backward()
             writer.add_scalar("Loss/train", total_loss.item(), global_step)
             global_step += 1
@@ -195,11 +197,21 @@ def train(args):
 
         # logs
         if (epoch + 1) % args.print_freq == 0:
-            logger.info(
-                "epoch [{}/{}], loss:{:.4f}, image_loss:{:.4f}".format(
-                    epoch + 1, args.epoch, np.mean(loss_list), np.mean(image_loss_list)
+            if args.no_imageloss:
+                logger.info(
+                    "epoch [{}/{}], loss:{:.4f}".format(
+                        epoch + 1, args.epoch, np.mean(loss_list)
+                    )
                 )
-            )
+            else:
+                logger.info(
+                    "epoch [{}/{}], loss:{:.4f}, image_loss:{:.4f}".format(
+                        epoch + 1,
+                        args.epoch,
+                        np.mean(loss_list),
+                        np.mean(image_loss_list),
+                    )
+                )
 
         # save model
         # if (epoch + 1) % args.save_freq == 0:
@@ -293,6 +305,11 @@ if __name__ == "__main__":
         "--no_dice",
         action="store_true",
         help="don't use dice loss",
+    )
+    parser.add_argument(
+        "--no_imageloss",
+        action="store_true",
+        help="don't use image-level loss",
     )
 
     args = parser.parse_args()
