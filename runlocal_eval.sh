@@ -11,6 +11,8 @@ python test.py \
   --t_n_ctx 4 \
   --seed $SEED \
   --measure_image_by_pixel \
+--meta_net \
+--metanet_patch_only \
   --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_$SEED/epoch_15.pth \
   # --checkpoint_path ./checkpoints/pretrained_mvtec_visualaetanh_$SEED/epoch_15.pth \
   # --visual_ae \

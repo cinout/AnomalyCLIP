@@ -43,6 +43,8 @@ python test.py \
   --t_n_ctx 4 \
   --seed $SEED \
   --measure_image_by_pixel \
+  --meta_net \
+  --metanet_patch_only \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
