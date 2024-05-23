@@ -34,8 +34,8 @@ SEED=20
 python test.py \
   --dataset visa \
   --data_path data/visa \
-  --save_path ./results/visa/0shot_baseline_evalpix_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_$SEED/epoch_15.pth \
+  --save_path ./results/visa/0shot_baseline_noimageloss_evalpix_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_noimageloss_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
