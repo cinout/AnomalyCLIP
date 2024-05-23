@@ -168,10 +168,11 @@ def test(args):
                     content["image_features"] = image_features[0]  # [768]
                     content["gt_mask"] = gt_mask[0, 0]  # [518, 518]
 
-            text_probs = image_features @ text_features.permute(0, 2, 1)
-            text_probs = (text_probs / 0.07).softmax(-1)
-            text_probs = text_probs[:, 0, 1]
-            results[cls_name[0]]["pr_sp"].extend(text_probs.detach().cpu())
+            if not args.measure_image_by_pixel:
+                text_probs = image_features @ text_features.permute(0, 2, 1)
+                text_probs = (text_probs / 0.07).softmax(-1)
+                text_probs = text_probs[:, 0, 1]
+                results[cls_name[0]]["pr_sp"].extend(text_probs.detach().cpu())
 
             anomaly_map_list = []
 
@@ -248,6 +249,11 @@ def test(args):
                 ],
                 dim=0,
             )  # [1, 518, 518]
+
+            if args.measure_image_by_pixel:
+                B, H, W = anomaly_map.shape
+                max_value, _ = torch.max(anomaly_map.reshape(B, -1), dim=1)
+                results[cls_name[0]]["pr_sp"].extend(max_value.detach().cpu())
 
             results[cls_name[0]]["anomaly_maps"].append(anomaly_map)
 
@@ -437,6 +443,11 @@ if __name__ == "__main__":
         "--visual_ae",
         action="store_true",
         help="use AE after the four selected stages of visual encoder",
+    )
+    parser.add_argument(
+        "--measure_image_by_pixel",
+        action="store_true",
+        help="use pixel score to measure image score",
     )
 
     args = parser.parse_args()
