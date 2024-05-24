@@ -9,7 +9,7 @@
 ###SBATCH --qos=gpgpudeeplearn
 ###SBATCH --constraint=dlg3|dlg4|dlg5
 
-#SBATCH --job-name="t_visa"
+#SBATCH --job-name="t_mvtec"
 #SBATCH --account=punim1623
 #SBATCH --time=0-02:00:00
 
@@ -38,23 +38,24 @@ SEED=30
 # FIXME: update save_path
 
 python train.py \
-  --dataset visa \
-  --train_data_path data/visa \
+  --dataset mvtec \
+  --train_data_path data/mvtec \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --batch_size 8 \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_visa_metanetponly_noimageloss_$SEED/ \
+  --save_path ./checkpoints/pretrained_mvtec_metanetponly_noimageloss_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
   --seed $SEED \
-  --no_imageloss \
-  --meta_net \
-  --metanet_patch_only \
-  --learning_rate 0.0001 \
+  --visual_mlp \
+  # --no_imageloss \
+  # --meta_net \
+  # --metanet_patch_only \
+  # --learning_rate 0.0001 \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s

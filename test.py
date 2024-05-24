@@ -193,7 +193,7 @@ def test(args):
                     # # print(f"std_for_each_channel [BEFORE]\n", std_for_each_channel)
                     # print(f"std_mean [BEFORE]: {std_for_each_channel.mean()}")
 
-                    if args.visual_ae:
+                    if args.visual_ae or args.visual_mlp:
                         patch_feature = prompt_learner.process_patch_features(
                             patch_feature, patch_idx
                         )
@@ -443,6 +443,11 @@ if __name__ == "__main__":
         "--visual_ae",
         action="store_true",
         help="use AE after the four selected stages of visual encoder",
+    )
+    parser.add_argument(
+        "--visual_mlp",
+        action="store_true",
+        help="use single MLP after the four selected stages of visual encoder",
     )
     parser.add_argument(
         "--measure_image_by_pixel",

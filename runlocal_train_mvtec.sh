@@ -14,7 +14,7 @@ python train.py \
   --n_ctx 12\
   --t_n_ctx 4 \
   --seed $SEED \
-  --no_imageloss \
-  # --visual_ae \
+  --visual_mlp \
+  # --no_imageloss \
   # --meta_net \
   # --metanet_patch_and_global \

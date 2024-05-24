@@ -33,7 +33,7 @@ module purge
 eval "$(conda shell.bash hook)"
 conda activate anogpt
 
-SEED=20
+SEED=10
 
 # FIXME: update save_path
 
@@ -51,10 +51,11 @@ python train.py \
   --n_ctx 12\
   --t_n_ctx 4 \
   --seed $SEED \
-  --no_imageloss \
-  --meta_net \
-  --metanet_patch_only \
-  --learning_rate 0.0001 \
+  --visual_mlp \
+  # --no_imageloss \
+  # --meta_net \
+  # --metanet_patch_only \
+  # --learning_rate 0.0001 \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s

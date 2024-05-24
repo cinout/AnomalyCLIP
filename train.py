@@ -155,7 +155,7 @@ def train(args):
                         dim=-1, keepdim=True
                     )  # [bs, 1370, 768]
 
-                    if args.visual_ae:
+                    if args.visual_ae or args.visual_mlp:
                         patch_feature = prompt_learner.process_patch_features(
                             patch_feature, idx
                         )
@@ -298,6 +298,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--visual_ae",
+        action="store_true",
+        help="use AE after the four selected stages of visual encoder",
+    )
+    parser.add_argument(
+        "--visual_mlp",
         action="store_true",
         help="use AE after the four selected stages of visual encoder",
     )

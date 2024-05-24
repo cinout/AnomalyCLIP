@@ -195,6 +195,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.metanet_patch_only = args.metanet_patch_only
         self.debug_mode = args.debug_mode
         self.visual_ae = args.visual_ae
+        self.visual_mlp = args.visual_mlp
         self.features_list = args.features_list
         vis_dim = clip_model.visual.output_dim  # 768
 
@@ -204,6 +205,13 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         if self.visual_ae:
             autoencoder = VisualAE(in_dim=vis_dim)
             self.aes = _get_clones(autoencoder, len(self.features_list))  # len == 4
+
+        """
+        visual MLP
+        """
+        if self.visual_mlp:
+            mlp = nn.Linear(vis_dim, vis_dim)
+            self.mlps = _get_clones(mlp, len(self.features_list))  # len == 4
 
         """
         Unused
@@ -438,24 +446,32 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         # patch_feature: [bs, 1370, 768]
         bs, n, c = patch_feature.shape
 
-        # get global token
+        # get global token and the rest
         global_token = patch_feature[:, 0, :]
+        patch_feature = patch_feature[:, 1:, :]  # [bs, n-1, c]
 
-        # reshape feature map
-        patch_feature = patch_feature[:, 1:, :]
-        side = int((n - 1) ** 0.5)
-        patch_feature = patch_feature.reshape(bs, side, side, -1).permute(
-            0, 3, 1, 2
-        )  # [bs, c, side, side]
+        if self.visual_ae:
 
-        # process by AE
-        ae = self.aes[idx]
-        patch_feature = ae(patch_feature)
+            # reshape feature map
+            side = int((n - 1) ** 0.5)
+            patch_feature = patch_feature.reshape(bs, side, side, -1).permute(
+                0, 3, 1, 2
+            )  # [bs, c, side, side]
 
-        # reshape back
-        patch_feature = patch_feature.reshape(bs, c, -1).permute(
-            0, 2, 1
-        )  # [bs, n-1, c]
+            # process by AE
+            ae = self.aes[idx]
+            patch_feature = ae(patch_feature)
+
+            # reshape back
+            patch_feature = patch_feature.reshape(bs, c, -1).permute(
+                0, 2, 1
+            )  # [bs, n-1, c]
+
+        elif self.visual_mlp:
+            mlp = self.mlps[idx]
+            patch_feature = mlp(patch_feature)  # [bs, n-1, c]
+        else:
+            raise Exception("wrong end")
 
         patch_feature = torch.cat([global_token.unsqueeze(1), patch_feature], dim=1)
 
