@@ -46,7 +46,7 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_visa_metanetponly_noimageloss_$SEED/ \
+  --save_path ./checkpoints/pretrained_visa_visualmlp_$SEED/ \
   --depth 9 \
   --n_ctx 12\
   --t_n_ctx 4 \
