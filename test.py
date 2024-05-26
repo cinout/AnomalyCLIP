@@ -257,15 +257,15 @@ def test(args):
 
             results[cls_name[0]]["anomaly_maps"].append(anomaly_map)
 
-            if args.seed == 10:
-                visualizer(
-                    items["img_path"],
-                    anomaly_map.detach().cpu().numpy(),
-                    args.image_size,
-                    args.save_path,
-                    cls_name,
-                    gt_mask,
-                )
+            # if args.seed == 10:
+            #     visualizer(
+            #         items["img_path"],
+            #         anomaly_map.detach().cpu().numpy(),
+            #         args.image_size,
+            #         args.save_path,
+            #         cls_name,
+            #         gt_mask,
+            #     )
 
     if args.debug_mode:
         stored_features["individual"] = all_results
