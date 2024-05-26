@@ -34,12 +34,12 @@ SEED=10
 python test.py \
   --dataset mvtec \
   --data_path data/mvtec \
-  --save_path ./results/mvtec/0shot_metanetpag_lr2e5_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_visa_metanetpag_lr2e5_$SEED/epoch_15.pth \
+  --save_path ./results/mvtec/0shot_metanetpag_lr1e4_nctx6_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_visa_metanetpag_lr1e4_nctx6_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
-  --n_ctx 12 \
+  --n_ctx 6 \
   --t_n_ctx 4 \
   --seed $SEED \
   --meta_net \
