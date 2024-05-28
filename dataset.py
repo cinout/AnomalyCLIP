@@ -99,7 +99,15 @@ def generate_class_info(dataset_name):
 
 
 class Dataset(data.Dataset):
-    def __init__(self, root, transform, target_transform, dataset_name, mode="test"):
+    def __init__(
+        self,
+        root,
+        transform,
+        target_transform,
+        dataset_name,
+        category=None,  # for musc
+        mode="test",
+    ):
         self.root = root
         self.transform = transform
         self.target_transform = target_transform
@@ -108,9 +116,18 @@ class Dataset(data.Dataset):
         name = self.root.split("/")[-1]
         meta_info = meta_info[mode]
 
-        self.cls_names = list(meta_info.keys())
-        for cls_name in self.cls_names:
-            self.data_all.extend(meta_info[cls_name])
+        self.cls_names = list(
+            meta_info.keys()
+        )  # all class names, e.g., ["bottle", ...]
+
+        self.category = category
+
+        if self.category:
+            self.data_all.extend(meta_info[self.category])
+        else:
+            for cls_name in self.cls_names:
+                self.data_all.extend(meta_info[cls_name])
+
         self.length = len(self.data_all)
 
         self.obj_list, self.class_name_map_class_id = generate_class_info(dataset_name)

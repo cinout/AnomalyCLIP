@@ -503,6 +503,8 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             raise Exception("Something is not right!")
 
         if self.meta_net and image_features is not None and patch_features is not None:
+            # TODO: update here
+
             if self.metanet_patch_only:
                 patch_features = [
                     torch.mean(feature[:, 1:, :], dim=1) for feature in patch_features

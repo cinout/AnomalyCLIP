@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from prompt_ensemble import AnomalyCLIP_PromptLearner
 from loss import FocalLoss, BinaryDiceLoss
 from utils import normalize
-from dataset import Dataset
+from dataset import Dataset, generate_class_info
 from logger import get_logger
 from tqdm import tqdm
 import numpy as np
@@ -44,15 +44,35 @@ def train(args):
     )
     model.eval()
 
-    train_data = Dataset(
-        root=args.train_data_path,
-        transform=preprocess,
-        target_transform=target_transform,
-        dataset_name=args.dataset,
-    )
-    train_dataloader = torch.utils.data.DataLoader(
-        train_data, batch_size=args.batch_size, shuffle=True
-    )
+    if args.musc:
+
+        categories, _ = generate_class_info(args.dataset)
+        train_data_by_category = [
+            Dataset(
+                root=args.train_data_path,
+                transform=preprocess,
+                target_transform=target_transform,
+                dataset_name=args.dataset,
+                category=category,
+            )
+            for category in categories
+        ]
+        train_dataloader_by_category = [
+            torch.utils.data.DataLoader(
+                train_data=train_data, batch_size=args.batch_size, shuffle=True
+            )
+            for train_data in train_data_by_category
+        ]
+    else:
+        train_data = Dataset(
+            root=args.train_data_path,
+            transform=preprocess,
+            target_transform=target_transform,
+            dataset_name=args.dataset,
+        )
+        train_dataloader = torch.utils.data.DataLoader(
+            train_data, batch_size=args.batch_size, shuffle=True
+        )
 
     ##########################################################################################
     prompt_learner = AnomalyCLIP_PromptLearner(
@@ -82,6 +102,7 @@ def train(args):
         loss_list = []
         image_loss_list = []
 
+        # TODO: what to do here?
         for items in tqdm(train_dataloader):
             image = items["img"].to(device)
             label = items["anomaly"]
@@ -278,6 +299,8 @@ if __name__ == "__main__":
     parser.add_argument("--print_freq", type=int, default=1, help="print frequency")
     parser.add_argument("--save_freq", type=int, default=1, help="save frequency")
     parser.add_argument("--seed", type=int, default=111, help="random seed")
+
+    # new ideas
     parser.add_argument("--meta_net", action="store_true")
     parser.add_argument("--maple", action="store_true")
     parser.add_argument(
@@ -315,6 +338,11 @@ if __name__ == "__main__":
         "--no_imageloss",
         action="store_true",
         help="don't use image-level loss",
+    )
+    parser.add_argument(
+        "--musc",
+        action="store_true",
+        help="use idea from musc paper, which simulates anomaly score from data",
     )
 
     args = parser.parse_args()

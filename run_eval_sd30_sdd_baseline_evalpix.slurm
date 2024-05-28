@@ -39,7 +39,7 @@ python test.py \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
-  --n_ctx 6 \
+  --n_ctx 12 \
   --t_n_ctx 4 \
   --seed $SEED \
   --meta_net \

@@ -48,7 +48,7 @@ python train.py \
   --save_freq 1 \
   --save_path ./checkpoints/pretrained_mvtec_metanetpag_lr1e4_nctx6_$SEED/ \
   --depth 9 \
-  --n_ctx 6 \
+  --n_ctx 12 \
   --t_n_ctx 4 \
   --seed $SEED \
   --meta_net \
