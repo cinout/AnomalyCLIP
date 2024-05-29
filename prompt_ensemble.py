@@ -196,6 +196,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.debug_mode = args.debug_mode
         self.visual_ae = args.visual_ae
         self.visual_mlp = args.visual_mlp
+        self.musc = args.musc
         self.features_list = args.features_list
         vis_dim = clip_model.visual.output_dim  # 768
 
@@ -433,6 +434,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.register_buffer("tokenized_prompts_pos", tokenized_prompts_pos)
         self.register_buffer("tokenized_prompts_neg", tokenized_prompts_neg)
 
+        # TODO: what is this? (use for maple)
         # self.proj = nn.Linear(ctx_dim, 768)
         # self.proj.half()
         self.visual_deep_prompts = None
@@ -477,7 +479,13 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
         return patch_feature
 
-    def forward(self, image_features=None, patch_features=None, cls_id=None):
+    def forward(
+        self,
+        image_features=None,
+        patch_features=None,
+        cls_id=None,
+        first_batch_patch_features=None,  # only not None when (1) last batch, and (2) only 1 image in last batch
+    ):
         # image_features.shape: [bs, 768]
         # patch_features: 4*[bs, 1370, 768]
 
@@ -503,16 +511,25 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             raise Exception("Something is not right!")
 
         if self.meta_net and image_features is not None and patch_features is not None:
-            # TODO: update here
 
+            # generate bias
             if self.metanet_patch_only:
-                patch_features = [
-                    torch.mean(feature[:, 1:, :], dim=1) for feature in patch_features
-                ]  # 4*[bs, 768]
-                patch_features = torch.stack(patch_features, dim=1)  # [bs, 4, 768]
-                patch_features = torch.mean(patch_features, dim=1)  # [bs, 768]
-                bias = self.meta_net(patch_features)
+                if self.musc:
+                    # TODO: remember to remove the reference image once MUSC operations are done
+
+                    pass
+                else:
+                    # patch level features
+                    patch_features = [
+                        torch.mean(feature[:, 1:, :], dim=1)
+                        for feature in patch_features
+                    ]  # 4*[bs, 768]
+                    patch_features = torch.stack(patch_features, dim=1)  # [bs, 4, 768]
+                    patch_features = torch.mean(patch_features, dim=1)  # [bs, 768]
+                    bias = self.meta_net(patch_features)
+
             elif self.metanet_patch_and_global:
+                # patch+global level features
                 patch_features = [
                     torch.mean(feature[:, 1:, :], dim=1) for feature in patch_features
                 ]  # 4*[bs, 768]
@@ -520,10 +537,12 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                 patch_features = torch.mean(patch_features, dim=1)  # [bs, 768]
                 bias = self.meta_net(image_features + patch_features)
             else:
+                # global level features
                 bias = self.meta_net(
                     image_features
                 )  # [bs, ctx_dim or ctx_dim*2], ctx_dim=768
 
+            # add bias to the learnable ctx
             bs, _ = bias.shape
 
             ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)

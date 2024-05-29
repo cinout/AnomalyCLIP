@@ -1,13 +1,11 @@
 import torch
 
 import random
+from tqdm import tqdm
 
-aa = torch.tensor(
-    [[0.01, -0.01, 0.08, 0.40, -0.5], [100.01, -98.01, 99.01, -101.01, 97.01]]
-)
-values, _ = torch.max(aa, dim=1)
-print(values.detach().cpu())
-
+mylist = [36, 99, 10]
+for item in tqdm(enumerate(mylist)):
+    print(item)
 
 # text_features = torch.randint(0, 5, size=(1, 4, 4))
 # print(image_features)

@@ -24,6 +24,160 @@ def setup_seed(seed):
     torch.backends.cudnn.benchmark = False
 
 
+def train_model(
+    args,
+    items,
+    device,
+    model,
+    prompt_learner,
+    optimizer,
+    loss_focal,
+    loss_dice,
+    loss_list,
+    image_loss_list,
+    writer,
+    global_step,
+    first_batch_items=None,
+):
+    image = items["img"].to(device)  # [bs, 3, 518, 518]
+    label = items["anomaly"]
+    gt = items["img_mask"].squeeze().to(device)
+
+    gt[gt > 0.5] = 1
+    gt[gt <= 0.5] = 0
+
+    with torch.no_grad():
+        # Apply DPAM to the layer from 6 to 24
+        # DPAM_layer represents the number of layer refined by DPAM from top to bottom
+        # DPAM_layer = 1, no DPAM is used
+        # DPAM_layer = 20 as default
+
+        image_features, patch_features = model.encode_image(
+            image,
+            args.features_list,
+            DPAM_layer=20,
+            maple=args.maple,
+            compound_deeper_prompts=prompt_learner.visual_deep_prompts,
+        )
+        if args.maple:
+            patch_features = [
+                feature[:, : -args.t_n_ctx, :] for feature in patch_features
+            ]
+
+        image_features = image_features / image_features.norm(
+            dim=-1, keepdim=True
+        )  # [8, 768]
+
+    ####################################
+
+    # for MUSC, use the first image of first batch as reference image
+    first_batch_image_features = None
+    first_batch_patch_features = None
+    if args.musc and image.shape[0] == 1:
+        first_batch_images = first_batch_items["img"].to(device)  # [bs, 3, 518, 518]
+        with torch.no_grad():
+            first_batch_image_features, first_batch_patch_features = model.encode_image(
+                first_batch_images,
+                args.features_list,
+                DPAM_layer=20,
+                maple=args.maple,
+                compound_deeper_prompts=prompt_learner.visual_deep_prompts,
+            )
+            if args.maple:
+                first_batch_patch_features = [
+                    feature[:, : -args.t_n_ctx, :]
+                    for feature in first_batch_patch_features
+                ]
+
+            first_batch_image_features = (
+                first_batch_image_features
+                / first_batch_image_features.norm(dim=-1, keepdim=True)
+            )  # [8, 768]
+
+    # generate prompts
+    prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
+        image_features=image_features,
+        patch_features=patch_features,
+        cls_id=None,
+        first_batch_patch_features=first_batch_patch_features,
+    )  # prompts: [2 or 2*bs, 77, 768]; tokenized_prompts: [2 or 2*bs, 77]; compound_prompts_text: [4, 768] * 8
+
+    text_features = model.encode_text_learn(
+        prompts, tokenized_prompts, compound_prompts_text
+    ).float()  # [2 or 2*bs, 768]
+
+    text_features = torch.stack(
+        torch.chunk(text_features, dim=0, chunks=2), dim=1
+    )  # [1 or bs, 2, 768]
+
+    text_features = text_features / text_features.norm(
+        dim=-1, keepdim=True
+    )  # [1 or bs, 2, 768]
+
+    if not args.no_imageloss:
+        # Apply DPAM surgery
+        text_probs = image_features.unsqueeze(1) @ text_features.permute(
+            0, 2, 1
+        )  # [8, 1, 2], the same text_features are applied to 8 images
+
+        text_probs = text_probs[:, 0, ...] / 0.07  # [8, 2]
+
+        image_loss = F.cross_entropy(
+            text_probs, label.long().to(device)
+        )  #  no shape # contains softmax
+
+        image_loss_list.append(image_loss.item())
+
+    #########################################################################
+    similarity_map_list = []
+
+    for idx, patch_feature in enumerate(patch_features):  # 4*[bs, 1370, 768]
+        if idx >= args.feature_map_layer[0]:  # >=0
+            patch_feature = patch_feature / patch_feature.norm(
+                dim=-1, keepdim=True
+            )  # [bs, 1370, 768]
+
+            if args.visual_ae or args.visual_mlp:
+                patch_feature = prompt_learner.process_patch_features(
+                    patch_feature, idx
+                )
+
+            # calculate patch-level similarity
+            similarity, _ = AnomalyCLIP_lib.compute_similarity(
+                patch_feature, text_features
+            )  # [bs, 1370, 2] # contains softmax
+
+            # upsample anomaly map
+            similarity_map = AnomalyCLIP_lib.get_similarity_map(
+                similarity[:, 1:, :], args.image_size
+            ).permute(
+                0, 3, 1, 2
+            )  # [bs, 2, 518, 518]
+
+            similarity_map_list.append(similarity_map)
+
+    loss = 0
+    for i in range(len(similarity_map_list)):
+        # both losses are averaged over the batch
+        loss += loss_focal(similarity_map_list[i], gt)
+        if not args.no_dice:
+            loss += loss_dice(similarity_map_list[i][:, 1, :, :], gt)
+            loss += loss_dice(similarity_map_list[i][:, 0, :, :], 1 - gt)
+
+    optimizer.zero_grad()
+
+    if args.no_imageloss:
+        total_loss = loss
+    else:
+        total_loss = loss + image_loss
+
+    total_loss.backward()
+    writer.add_scalar("Loss/train", total_loss.item(), global_step)
+    global_step += 1
+    optimizer.step()
+    loss_list.append(loss.item())
+
+
 def train(args):
 
     logger = get_logger(args.save_path)
@@ -45,7 +199,6 @@ def train(args):
     model.eval()
 
     if args.musc:
-
         categories, _ = generate_class_info(args.dataset)
         train_data_by_category = [
             Dataset(
@@ -59,7 +212,7 @@ def train(args):
         ]
         train_dataloader_by_category = [
             torch.utils.data.DataLoader(
-                train_data=train_data, batch_size=args.batch_size, shuffle=True
+                train_data, batch_size=args.batch_size, shuffle=True
             )
             for train_data in train_data_by_category
         ]
@@ -102,119 +255,46 @@ def train(args):
         loss_list = []
         image_loss_list = []
 
-        # TODO: what to do here?
-        for items in tqdm(train_dataloader):
-            image = items["img"].to(device)
-            label = items["anomaly"]
+        # TODO: remember to store the first image in the first batch just in case the last batch only has one image
+        if args.musc:
+            random.shuffle(train_dataloader_by_category)
+            for train_dataloader in train_dataloader_by_category:
+                # train_dataloder for a category
 
-            gt = items["img_mask"].squeeze().to(device)
-            gt[gt > 0.5] = 1
-            gt[gt <= 0.5] = 0
-
-            with torch.no_grad():
-                # Apply DPAM to the layer from 6 to 24
-                # DPAM_layer represents the number of layer refined by DPAM from top to bottom
-                # DPAM_layer = 1, no DPAM is used
-                # DPAM_layer = 20 as default
-
-                image_features, patch_features = model.encode_image(
-                    image,
-                    args.features_list,
-                    DPAM_layer=20,
-                    maple=args.maple,
-                    compound_deeper_prompts=prompt_learner.visual_deep_prompts,
+                for batch_idx, items in tqdm(enumerate(train_dataloader)):
+                    if batch_idx == 0:
+                        first_batch_items = items
+                    train_model(
+                        args,
+                        items,
+                        device,
+                        model,
+                        prompt_learner,
+                        optimizer,
+                        loss_focal,
+                        loss_dice,
+                        loss_list,
+                        image_loss_list,
+                        writer,
+                        global_step,
+                        first_batch_items,
+                    )
+        else:
+            for items in tqdm(train_dataloader):
+                train_model(
+                    args,
+                    items,
+                    device,
+                    model,
+                    prompt_learner,
+                    optimizer,
+                    loss_focal,
+                    loss_dice,
+                    loss_list,
+                    image_loss_list,
+                    writer,
+                    global_step,
                 )
-                if args.maple:
-                    patch_features = [
-                        feature[:, : -args.t_n_ctx, :] for feature in patch_features
-                    ]
-
-                image_features = image_features / image_features.norm(
-                    dim=-1, keepdim=True
-                )  # [8, 768]
-
-            ####################################
-
-            prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
-                image_features=image_features,
-                patch_features=patch_features,
-                cls_id=None,
-            )  # prompts: [2 or 2*bs, 77, 768]; tokenized_prompts: [2 or 2*bs, 77]; compound_prompts_text: [4, 768] * 8
-
-            text_features = model.encode_text_learn(
-                prompts, tokenized_prompts, compound_prompts_text
-            ).float()  # [2 or 2*bs, 768]
-
-            text_features = torch.stack(
-                torch.chunk(text_features, dim=0, chunks=2), dim=1
-            )  # [1 or bs, 2, 768]
-
-            text_features = text_features / text_features.norm(
-                dim=-1, keepdim=True
-            )  # [1 or bs, 2, 768]
-
-            if not args.no_imageloss:
-                # Apply DPAM surgery
-                text_probs = image_features.unsqueeze(1) @ text_features.permute(
-                    0, 2, 1
-                )  # [8, 1, 2], the same text_features are applied to 8 images
-
-                text_probs = text_probs[:, 0, ...] / 0.07  # [8, 2]
-
-                image_loss = F.cross_entropy(
-                    text_probs, label.long().to(device)
-                )  #  no shape # contains softmax
-
-                image_loss_list.append(image_loss.item())
-
-            #########################################################################
-            similarity_map_list = []
-
-            for idx, patch_feature in enumerate(patch_features):  # 4*[bs, 1370, 768]
-                if idx >= args.feature_map_layer[0]:  # >=0
-                    patch_feature = patch_feature / patch_feature.norm(
-                        dim=-1, keepdim=True
-                    )  # [bs, 1370, 768]
-
-                    if args.visual_ae or args.visual_mlp:
-                        patch_feature = prompt_learner.process_patch_features(
-                            patch_feature, idx
-                        )
-
-                    # calculate patch-level similarity
-                    similarity, _ = AnomalyCLIP_lib.compute_similarity(
-                        patch_feature, text_features
-                    )  # [bs, 1370, 2] # contains softmax
-
-                    # upsample anomaly map
-                    similarity_map = AnomalyCLIP_lib.get_similarity_map(
-                        similarity[:, 1:, :], args.image_size
-                    ).permute(
-                        0, 3, 1, 2
-                    )  # [bs, 2, 518, 518]
-
-                    similarity_map_list.append(similarity_map)
-
-            loss = 0
-            for i in range(len(similarity_map_list)):
-                # both losses are averaged over the batch
-                loss += loss_focal(similarity_map_list[i], gt)
-                if not args.no_dice:
-                    loss += loss_dice(similarity_map_list[i][:, 1, :, :], gt)
-                    loss += loss_dice(similarity_map_list[i][:, 0, :, :], 1 - gt)
-
-            optimizer.zero_grad()
-
-            if args.no_imageloss:
-                total_loss = loss
-            else:
-                total_loss = loss + image_loss
-
-            total_loss.backward()
-            writer.add_scalar("Loss/train", total_loss.item(), global_step)
-            global_step += 1
-            optimizer.step()
-            loss_list.append(loss.item())
 
         # logs
         if (epoch + 1) % args.print_freq == 0:

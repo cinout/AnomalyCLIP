@@ -30,7 +30,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-# TODO: polish this file
 class MuSc:
     def __init__(self, cfg, seed=0):
         self.cfg = cfg
