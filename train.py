@@ -263,7 +263,7 @@ def train(args):
             for train_dataloader in train_dataloader_by_category:
                 # train_dataloder for a category
 
-                for batch_idx, items in tqdm(enumerate(train_dataloader)):
+                for batch_idx, items in enumerate(train_dataloader):
                     if (
                         batch_idx == 0
                     ):  # store the first batch items in case the last batch only has one image
