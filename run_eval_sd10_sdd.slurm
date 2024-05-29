@@ -34,8 +34,8 @@ SEED=10
 python test.py \
   --dataset sdd \
   --data_path data/sdd \
-  --save_path ./results/sdd/0shot_metanetpag_lr1e4_nctx6_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetpag_lr1e4_nctx6_$SEED/epoch_15.pth \
+  --save_path ./results/sdd/0shot_metanetponly_lr1e4_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
@@ -43,7 +43,7 @@ python test.py \
   --t_n_ctx 4 \
   --seed $SEED \
   --meta_net \
-  --metanet_patch_and_global \
+  --metanet_patch_only \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
