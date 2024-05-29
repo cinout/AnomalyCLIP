@@ -454,6 +454,18 @@ if __name__ == "__main__":
         action="store_true",
         help="use pixel score to measure image score",
     )
+    parser.add_argument(
+        "--musc",
+        action="store_true",
+        help="use idea from musc paper, which simulates anomaly score from data",
+    )
+    parser.add_argument(
+        "--r_list",
+        type=int,
+        nargs="+",
+        default=[1, 3, 5],
+        help="feature aggregation r for musc",
+    )
 
     args = parser.parse_args()
     print(
