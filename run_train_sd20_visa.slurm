@@ -46,13 +46,13 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_visa_metanetpag_lr1e4_nctx6_$SEED/ \
+  --save_path ./checkpoints/pretrained_visa_metanetponly_lr1e4_$SEED/ \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
   --seed $SEED \
   --meta_net \
-  --metanet_patch_and_global \
+  --metanet_patch_only \
   --learning_rate 0.0001 \
 
 ##Log this job's resource usage stats###
