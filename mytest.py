@@ -1,22 +1,55 @@
 import torch
-
+import math
 import random
 from tqdm import tqdm
+from PIL import Image
+import numpy as np
 
-mylist = [36, 99, 10]
-for item in tqdm(enumerate(mylist)):
-    print(item)
+B, L, C = 4, 10, 5
+tensor1 = torch.randint(0, 30, size=(B, L, C))
+tensor2 = torch.tensor(
+    [[8, 1, 3, 0, 5], [4, 1, 2, 3, 5], [7, 3, 6, 4, 8], [8, 7, 0, 2, 3]]
+)
 
-# text_features = torch.randint(0, 5, size=(1, 4, 4))
-# print(image_features)
-# print("---------")
-# print(text_features)
-# print("---------")
-# whatsi = image_features * text_features
+print(tensor1)
 
-# print(whatsi)
-# print(whatsi.shape)
+for img_idx, value in enumerate(tensor2):
+    result = tensor1[img_idx, value]
+    print(result)
+exit()
 
+
+H = 37
+image_size = 518
+
+path = "data/mvtec/cable/test/cut_inner_insulation/001.png"
+image = Image.open(path).convert("RGBA")
+image = image.resize((H, H))
+
+
+values = random.sample(list(range(H * H - 1)), math.floor(H * H * 0.6))
+values = [(math.floor(v / H), v % H) for v in values]
+
+
+seg = np.full((H, H), False)
+for tup in values:
+    seg[tup] = True
+
+
+mask = np.zeros(
+    (H, H, 4),
+    dtype=np.uint8,
+)
+mask[seg] = [
+    238,
+    79,
+    38,
+    89,
+]
+mask = Image.fromarray(mask)
+image.paste(mask, (0, 0), mask)
+
+image.save("test.png", "PNG")
 
 AnomalyCLIP_keys = [
     "positional_embedding",

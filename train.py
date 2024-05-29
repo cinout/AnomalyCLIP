@@ -42,6 +42,7 @@ def train_model(
     image = items["img"].to(device)  # [bs, 3, 518, 518]
     label = items["anomaly"]
     gt = items["img_mask"].squeeze().to(device)
+    img_path = items["img_path"]
 
     gt[gt > 0.5] = 1
     gt[gt <= 0.5] = 0
@@ -100,6 +101,7 @@ def train_model(
         patch_features=patch_features,
         cls_id=None,
         first_batch_patch_features=first_batch_patch_features,
+        img_path=img_path,
     )  # prompts: [2 or 2*bs, 77, 768]; tokenized_prompts: [2 or 2*bs, 77]; compound_prompts_text: [4, 768] * 8
 
     text_features = model.encode_text_learn(
@@ -184,6 +186,7 @@ def train(args):
 
     preprocess, target_transform = get_transform(args)
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    args.device = device
 
     AnomalyCLIP_parameters = {
         "Prompt_length": args.n_ctx,
@@ -255,14 +258,15 @@ def train(args):
         loss_list = []
         image_loss_list = []
 
-        # TODO: remember to store the first image in the first batch just in case the last batch only has one image
         if args.musc:
             random.shuffle(train_dataloader_by_category)
             for train_dataloader in train_dataloader_by_category:
                 # train_dataloder for a category
 
                 for batch_idx, items in tqdm(enumerate(train_dataloader)):
-                    if batch_idx == 0:
+                    if (
+                        batch_idx == 0
+                    ):  # store the first batch items in case the last batch only has one image
                         first_batch_items = items
                     train_model(
                         args,
@@ -423,6 +427,13 @@ if __name__ == "__main__":
         "--musc",
         action="store_true",
         help="use idea from musc paper, which simulates anomaly score from data",
+    )
+    parser.add_argument(
+        "--r_list",
+        type=int,
+        nargs="+",
+        default=[1, 3, 5],
+        help="feature aggregation r for musc",
     )
 
     args = parser.parse_args()

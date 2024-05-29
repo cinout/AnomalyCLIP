@@ -5,6 +5,7 @@ import torch
 import numpy as np
 from AnomalyCLIP_lib.simple_tokenizer import SimpleTokenizer as _Tokenizer
 from collections import OrderedDict
+from musc.musc import MuSc
 
 # from open_clip import tokenizer
 # simple_tokenizer = tokenizer.SimpleTokenizer()
@@ -199,6 +200,12 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.musc = args.musc
         self.features_list = args.features_list
         vis_dim = clip_model.visual.output_dim  # 768
+
+        """
+        MUSC
+        """
+        if self.musc:
+            self.musc_process = MuSc(args)
 
         """
         visual AE
@@ -434,7 +441,6 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.register_buffer("tokenized_prompts_pos", tokenized_prompts_pos)
         self.register_buffer("tokenized_prompts_neg", tokenized_prompts_neg)
 
-        # TODO: what is this? (use for maple)
         # self.proj = nn.Linear(ctx_dim, 768)
         # self.proj.half()
         self.visual_deep_prompts = None
@@ -485,9 +491,10 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         patch_features=None,
         cls_id=None,
         first_batch_patch_features=None,  # only not None when (1) last batch, and (2) only 1 image in last batch
+        img_path=None,
     ):
         # image_features.shape: [bs, 768]
-        # patch_features: 4*[bs, 1370, 768]
+        # patch_features/first_batch_patch_features: 4*[bs, 1370, 768]
 
         ctx_pos = self.ctx_pos  # (1, 1, 12, 768)
         ctx_neg = self.ctx_neg
@@ -515,9 +522,26 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             # generate bias
             if self.metanet_patch_only:
                 if self.musc:
-                    # TODO: remember to remove the reference image once MUSC operations are done
+                    if patch_features[0].shape[0] == 1:
+                        assert (
+                            first_batch_patch_features is not None
+                        ), "need first batch's features because the current batch has only 1 image"
 
-                    pass
+                        patch_features = [
+                            torch.cat(
+                                [current_batch, first_batch[0].unsqueeze(0)], dim=0
+                            )
+                            for current_batch, first_batch in zip(
+                                patch_features, first_batch_patch_features
+                            )
+                        ]
+                        patch_features = self.musc_process.process_features(
+                            patch_features, img_path, take_first_only=True
+                        )  # [bs, 768]
+                    else:
+                        patch_features = self.musc_process.process_features(
+                            patch_features, img_path
+                        )  # [bs, 768]
                 else:
                     # patch level features
                     patch_features = [
@@ -526,7 +550,8 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                     ]  # 4*[bs, 768]
                     patch_features = torch.stack(patch_features, dim=1)  # [bs, 4, 768]
                     patch_features = torch.mean(patch_features, dim=1)  # [bs, 768]
-                    bias = self.meta_net(patch_features)
+
+                bias = self.meta_net(patch_features)
 
             elif self.metanet_patch_and_global:
                 # patch+global level features
@@ -549,6 +574,8 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             ctx_neg = ctx_neg.unsqueeze(0)
 
             bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
+
+            # TODO: try only adding to pos
 
             ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
             ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
