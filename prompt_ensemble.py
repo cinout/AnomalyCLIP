@@ -198,6 +198,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.visual_ae = args.visual_ae
         self.visual_mlp = args.visual_mlp
         self.musc = args.musc
+        self.bias_ctx_pos_only = args.bias_ctx_pos_only
         self.features_list = args.features_list
         vis_dim = clip_model.visual.output_dim  # 768
 
@@ -575,10 +576,9 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
             bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
 
-            # TODO: try only adding to pos
-
             ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
-            ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
+            if not self.bias_ctx_pos_only:
+                ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
 
             prefix_shape = prefix_pos.shape
             suffix_shape = suffix_pos.shape

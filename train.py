@@ -435,6 +435,11 @@ if __name__ == "__main__":
         default=[1, 3, 5],
         help="feature aggregation r for musc",
     )
+    parser.add_argument(
+        "--bias_ctx_pos_only",
+        action="store_true",
+        help="add metanet bias to ctx_pos only",
+    )
 
     args = parser.parse_args()
 
