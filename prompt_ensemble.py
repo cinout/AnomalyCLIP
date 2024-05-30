@@ -577,7 +577,9 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
 
             ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
-            if not self.bias_ctx_pos_only:
+            if self.bias_ctx_pos_only:
+                ctx_neg = ctx_neg.expand(size=(bs, *ctx_neg.shape[1:]))
+            else:
                 ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
 
             prefix_shape = prefix_pos.shape

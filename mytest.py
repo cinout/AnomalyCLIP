@@ -8,20 +8,14 @@ import numpy as np
 B = 5
 C = 3
 
-tensor1 = torch.randint(1, 10, size=(B, C))
-tensor2 = torch.randint(1, 10, size=(1, 2, C))
-
-tensor1_expand = tensor1.unsqueeze(1)
-
-# res1 = tensor1 @ tensor2.permute(0, 2, 1)
-res2 = tensor1_expand @ tensor2.permute(0, 2, 1)
-
-print(tensor1_expand)
-print(tensor2)
-print("----------")
-print(res2)
+tensor1 = torch.randint(1, 10, size=(1, 1, 1, C))
+print(tensor1)
+print(tensor1.shape)
 
 
+tensor1 = tensor1.expand(size=(B, *tensor1.shape[1:]))
+print(tensor1)
+print(tensor1.shape)
 exit()
 
 

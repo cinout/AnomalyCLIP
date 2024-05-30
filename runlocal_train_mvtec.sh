@@ -17,6 +17,8 @@ python train.py \
   --meta_net \
   --metanet_patch_only \
   --musc \
+  --learning_rate 0.0001 \
+  --bias_ctx_pos_only \
   # --no_imageloss \
   # --meta_net \
   # --metanet_patch_and_global \
