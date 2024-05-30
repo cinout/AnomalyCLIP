@@ -34,7 +34,7 @@ SEED=20
 python test.py \
   --dataset dagm \
   --data_path data/dagm \
-  --save_path ./results/dagm/0shot_metanetponly_lr1e4_$SEED \
+  --save_path ./results/dagm/0shot_metanetponly_lr1e4_bs8_$SEED \
   --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \

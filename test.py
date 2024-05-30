@@ -5,10 +5,9 @@ import torch.nn.functional as F
 from prompt_ensemble import AnomalyCLIP_PromptLearner
 from loss import FocalLoss, BinaryDiceLoss
 from utils import normalize
-from dataset import Dataset
 from logger import get_logger
 from tqdm import tqdm
-
+from dataset import Dataset, generate_class_info
 import os
 import random
 import numpy as np
@@ -41,6 +40,7 @@ def generate_text_features(
     text_features = model.encode_text_learn(
         prompts, tokenized_prompts, compound_prompts_text
     ).float()  # [2 or 2*bs, 768]
+
     text_features = torch.stack(torch.chunk(text_features, dim=0, chunks=2), dim=1)
     text_features = text_features / text_features.norm(dim=-1, keepdim=True)
 
@@ -72,19 +72,37 @@ def test(args):
     model.eval()
 
     preprocess, target_transform = get_transform(args)
-    test_data = Dataset(
-        root=args.data_path,
-        transform=preprocess,
-        target_transform=target_transform,
-        dataset_name=args.dataset,
-    )
 
-    # [TODO]: change to False
+    # update for batch_size>1
+    categories, _ = generate_class_info(args.dataset)
+    test_data_by_category = [
+        Dataset(
+            root=args.data_path,
+            transform=preprocess,
+            target_transform=target_transform,
+            dataset_name=args.dataset,
+            category=category,
+        )
+        for category in categories
+    ]
+    test_dataloader_by_category = [
+        torch.utils.data.DataLoader(
+            test_data, batch_size=args.batch_size, shuffle=False
+        )
+        for test_data in test_data_by_category
+    ]
+    obj_list = categories
 
-    test_dataloader = torch.utils.data.DataLoader(
-        test_data, batch_size=1, shuffle=False
-    )
-    obj_list = test_data.obj_list
+    # test_data = Dataset(
+    #     root=args.data_path,
+    #     transform=preprocess,
+    #     target_transform=target_transform,
+    #     dataset_name=args.dataset,
+    # )
+    # test_dataloader = torch.utils.data.DataLoader(
+    #     test_data, batch_size=args.batch_size, shuffle=False
+    # )
+    # obj_list = test_data.obj_list
 
     results = {}
     metrics = {}
@@ -115,169 +133,177 @@ def test(args):
 
     model.to(device)
 
-    if args.debug_mode:
-        stored_features = dict()
-        stored_features["prior_text_feature"] = text_features
-        all_results = []
+    # if args.debug_mode:
+    #     stored_features = dict()
+    #     stored_features["prior_text_feature"] = text_features
+    #     all_results = []
 
-    for count, items in enumerate(tqdm(test_dataloader)):
+    for test_dataloader in test_dataloader_by_category:
+        # for each category
+        for batch_idx, items in enumerate(test_dataloader):
+            # for count, items in enumerate(tqdm(test_dataloader)):
 
-        image = items["img"].to(device)
-        cls_name = items["cls_name"]
-        cls_id = items["cls_id"]
-        gt_mask = items["img_mask"]
-        gt_mask[gt_mask > 0.5], gt_mask[gt_mask <= 0.5] = 1, 0  # [1, 1, 518, 518]
-        results[cls_name[0]]["imgs_masks"].append(gt_mask)  # px
-        image_anomaly = items["anomaly"].detach().cpu()
+            image = items["img"].to(device)
+            cls_name = items["cls_name"]
+            cls_id = items["cls_id"]
+            gt_mask = items["img_mask"]
+            gt_mask[gt_mask > 0.5], gt_mask[gt_mask <= 0.5] = 1, 0  # [bs, 1, 518, 518]
 
-        # # [TODO]: comment out
-        # image_path = items["img_path"][0]
-        # print(f"image_path: {image_path}, image_anomaly: {image_anomaly[0]}")
+            results[cls_name[0]]["imgs_masks"].append(gt_mask)  # px
+            image_anomaly = items["anomaly"].detach().cpu()  # [bs]
 
-        results[cls_name[0]]["gt_sp"].extend(image_anomaly)
+            # # [TODO]: comment out
+            # image_path = items["img_path"][0]
+            # print(f"image_path: {image_path}, image_anomaly: {image_anomaly[0]}")
 
-        if args.debug_mode:
-            content = dict()
-            if not args.meta_net:
-                content["gt_anomaly"] = items["anomaly"][0]
-                content["class_name"] = cls_name[0]
+            results[cls_name[0]]["gt_sp"].extend(image_anomaly)
 
-        with torch.no_grad():
-            image_features, patch_features = model.encode_image(
-                image,
-                features_list,
-                DPAM_layer=20,
-                maple=args.maple,
-                compound_deeper_prompts=prompt_learner.visual_deep_prompts,
-            )
-            if args.maple:
-                patch_features = [
-                    feature[:, : -args.t_n_ctx, :] for feature in patch_features
-                ]
-            image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+            # if args.debug_mode:
+            #     content = dict()
+            #     if not args.meta_net:
+            #         content["gt_anomaly"] = items["anomaly"][0]
+            #         content["class_name"] = cls_name[0]
 
-            if args.meta_net:
-                text_features = generate_text_features(
-                    prompt_learner, model, image_features, patch_features
+            with torch.no_grad():
+                image_features, patch_features = model.encode_image(
+                    image,
+                    features_list,
+                    DPAM_layer=20,
+                    maple=args.maple,
+                    compound_deeper_prompts=prompt_learner.visual_deep_prompts,
                 )
-                if args.debug_mode:
-                    content["text_features"] = text_features[0]  # [2, 768]
+                if args.maple:
+                    patch_features = [
+                        feature[:, : -args.t_n_ctx, :] for feature in patch_features
+                    ]
+                image_features = image_features / image_features.norm(
+                    dim=-1, keepdim=True
+                )  # [bs, 768]
 
-            if args.debug_mode:
-                if not args.meta_net:
-                    content["image_features"] = image_features[0]  # [768]
-                    content["gt_mask"] = gt_mask[0, 0]  # [518, 518]
+                if args.meta_net:
+                    text_features = generate_text_features(
+                        prompt_learner, model, image_features, patch_features
+                    )  # [bs, 2, 768] if metanet else [1, 2, 768]
+                    # if args.debug_mode:
+                    #     content["text_features"] = text_features[0]  # [2, 768]
 
-            if not args.measure_image_by_pixel:
-                text_probs = image_features @ text_features.permute(0, 2, 1)
-                text_probs = (text_probs / 0.07).softmax(-1)
-                text_probs = text_probs[:, 0, 1]
-                results[cls_name[0]]["pr_sp"].extend(text_probs.detach().cpu())
+                # if args.debug_mode:
+                #     if not args.meta_net:
+                #         content["image_features"] = image_features[0]  # [768]
+                #         content["gt_mask"] = gt_mask[0, 0]  # [518, 518]
 
-            anomaly_map_list = []
+                if not args.measure_image_by_pixel:
+                    text_probs = image_features.unsqueeze(1) @ text_features.permute(
+                        0, 2, 1
+                    )  # [bs, 1, 2]
+                    text_probs = (text_probs / 0.07).softmax(-1)
+                    text_probs = text_probs[:, 0, 1]  # [bs]
+                    results[cls_name[0]]["pr_sp"].extend(text_probs.detach().cpu())
 
-            if args.debug_mode:
-                patch_features_norm = []
+                anomaly_map_list = []
 
-            for patch_idx, patch_feature in enumerate(patch_features):
-                if patch_idx >= args.feature_map_layer[0]:
-                    patch_feature = patch_feature / patch_feature.norm(
-                        dim=-1, keepdim=True
-                    )
+                # if args.debug_mode:
+                #     patch_features_norm = []
 
-                    # # [TODO]: comment out
-                    # patch_feature_tmp = patch_feature[:, 1:, :]  # [1, 1369, 768]
-                    # patch_feature_tmp = patch_feature_tmp[0]  # [1369, 768]
-                    # patch_feature_tmp = F.normalize(patch_feature_tmp, dim=0)
-                    # std_for_each_channel = torch.std(patch_feature_tmp, dim=0)
-                    # # print(f"std_for_each_channel [BEFORE]\n", std_for_each_channel)
-                    # print(f"std_mean [BEFORE]: {std_for_each_channel.mean()}")
-
-                    if args.visual_ae or args.visual_mlp:
-                        patch_feature = prompt_learner.process_patch_features(
-                            patch_feature, patch_idx
+                for patch_idx, patch_feature in enumerate(patch_features):
+                    if patch_idx >= args.feature_map_layer[0]:
+                        patch_feature = patch_feature / patch_feature.norm(
+                            dim=-1, keepdim=True
                         )
 
                         # # [TODO]: comment out
                         # patch_feature_tmp = patch_feature[:, 1:, :]  # [1, 1369, 768]
-                        # patch_feature_tmp = patch_feature_tmp[0]
+                        # patch_feature_tmp = patch_feature_tmp[0]  # [1369, 768]
                         # patch_feature_tmp = F.normalize(patch_feature_tmp, dim=0)
                         # std_for_each_channel = torch.std(patch_feature_tmp, dim=0)
-                        # # print(f"std_for_each_channel [AFTER]\n", std_for_each_channel)
-                        # print(f"std_mean [AFTER]: {std_for_each_channel.mean()}")
-                        # print("----------------")
+                        # # print(f"std_for_each_channel [BEFORE]\n", std_for_each_channel)
+                        # print(f"std_mean [BEFORE]: {std_for_each_channel.mean()}")
 
-                    if args.debug_mode:
-                        patch_features_norm.append(patch_feature[0, 1:, :])
+                        if args.visual_ae or args.visual_mlp:
+                            patch_feature = prompt_learner.process_patch_features(
+                                patch_feature, patch_idx
+                            )
 
-                    similarity, _ = AnomalyCLIP_lib.compute_similarity(
-                        patch_feature, text_features
-                    )  # contains softmax
-                    similarity_map = AnomalyCLIP_lib.get_similarity_map(
-                        similarity[:, 1:, :], args.image_size
-                    )  # [1, 518, 518, 2]
+                            # # [TODO]: comment out
+                            # patch_feature_tmp = patch_feature[:, 1:, :]  # [1, 1369, 768]
+                            # patch_feature_tmp = patch_feature_tmp[0]
+                            # patch_feature_tmp = F.normalize(patch_feature_tmp, dim=0)
+                            # std_for_each_channel = torch.std(patch_feature_tmp, dim=0)
+                            # # print(f"std_for_each_channel [AFTER]\n", std_for_each_channel)
+                            # print(f"std_mean [AFTER]: {std_for_each_channel.mean()}")
+                            # print("----------------")
 
-                    anomaly_map = (
-                        similarity_map[..., 1] + 1 - similarity_map[..., 0]
-                    ) / 2.0
-                    anomaly_map_list.append(anomaly_map)
+                        # if args.debug_mode:
+                        #     patch_features_norm.append(patch_feature[0, 1:, :])
 
-                # # [TODO]: comment out
-                # print("================")
+                        similarity, _ = AnomalyCLIP_lib.compute_similarity(
+                            patch_feature, text_features
+                        )  # contains softmax, [bs, 1370, 2]
+                        similarity_map = AnomalyCLIP_lib.get_similarity_map(
+                            similarity[:, 1:, :], args.image_size
+                        )  # [1, 518, 518, 2]
 
-            if args.debug_mode:
-                patch_features_norm = torch.stack(patch_features_norm, dim=0)
-                patch_features_norm = torch.mean(patch_features_norm, dim=0)
-                side = int(patch_features_norm.shape[0] ** 0.5)
-                patch_features_norm = torch.reshape(
-                    patch_features_norm, (side, side, -1)
-                )
-                if not args.meta_net:
-                    content["patch_features"] = patch_features_norm  # [37, 37, 768]
+                        anomaly_map = (
+                            similarity_map[..., 1] + 1 - similarity_map[..., 0]
+                        ) / 2.0
+                        anomaly_map_list.append(anomaly_map)
 
-                all_results.append(content)
+                    # # [TODO]: comment out
+                    # print("================")
 
-                continue
+                # if args.debug_mode:
+                #     patch_features_norm = torch.stack(patch_features_norm, dim=0)
+                #     patch_features_norm = torch.mean(patch_features_norm, dim=0)
+                #     side = int(patch_features_norm.shape[0] ** 0.5)
+                #     patch_features_norm = torch.reshape(
+                #         patch_features_norm, (side, side, -1)
+                #     )
+                #     if not args.meta_net:
+                #         content["patch_features"] = patch_features_norm  # [37, 37, 768]
 
-            anomaly_map = torch.stack(anomaly_map_list)  # [4, 1, 518, 518]
-            anomaly_map = anomaly_map.sum(dim=0)  # [1, 518, 518]
+                #     all_results.append(content)
 
-            anomaly_map = torch.stack(
-                [
-                    torch.from_numpy(gaussian_filter(i, sigma=args.sigma))
-                    for i in anomaly_map.detach().cpu()
-                ],
-                dim=0,
-            )  # [1, 518, 518]
+                #     continue
 
-            if args.measure_image_by_pixel:
-                B, H, W = anomaly_map.shape
-                max_value, _ = torch.max(anomaly_map.reshape(B, -1), dim=1)
-                results[cls_name[0]]["pr_sp"].extend(max_value.detach().cpu())
+                anomaly_map = torch.stack(anomaly_map_list)  # [4, bs, 518, 518]
+                anomaly_map = anomaly_map.sum(dim=0)  # [bs, 518, 518]
 
-            results[cls_name[0]]["anomaly_maps"].append(anomaly_map)
+                anomaly_map = torch.stack(
+                    [
+                        torch.from_numpy(gaussian_filter(i, sigma=args.sigma))
+                        for i in anomaly_map.detach().cpu()
+                    ],
+                    dim=0,
+                )  # [bs, 518, 518]
 
-            # if args.seed == 10:
-            #     visualizer(
-            #         items["img_path"],
-            #         anomaly_map.detach().cpu().numpy(),
-            #         args.image_size,
-            #         args.save_path,
-            #         cls_name,
-            #         gt_mask,
-            #     )
+                if args.measure_image_by_pixel:
+                    B, H, W = anomaly_map.shape
+                    max_value, _ = torch.max(anomaly_map.reshape(B, -1), dim=1)
+                    results[cls_name[0]]["pr_sp"].extend(max_value.detach().cpu())
 
-    if args.debug_mode:
-        stored_features["individual"] = all_results
-        condition = "baseline"
-        if args.meta_net and args.metanet_patch_and_global:
-            condition = "metanet_pag"
-        elif args.meta_net and args.metanet_patch_only:
-            condition = "metanet_ponly"
+                results[cls_name[0]]["anomaly_maps"].append(anomaly_map)
 
-        with open(f"{args.dataset}_{condition}.t", "wb") as f:
-            torch.save(stored_features, f)
-        return
+                # if args.seed == 10:
+                #     visualizer(
+                #         items["img_path"],
+                #         anomaly_map.detach().cpu().numpy(),
+                #         args.image_size,
+                #         args.save_path,
+                #         cls_name,
+                #         gt_mask,
+                #     )
+
+    # if args.debug_mode:
+    #     stored_features["individual"] = all_results
+    #     condition = "baseline"
+    #     if args.meta_net and args.metanet_patch_and_global:
+    #         condition = "metanet_pag"
+    #     elif args.meta_net and args.metanet_patch_only:
+    #         condition = "metanet_ponly"
+
+    #     with open(f"{args.dataset}_{condition}.t", "wb") as f:
+    #         torch.save(stored_features, f)
+    #     return
 
     table_ls = []
     image_auroc_list = []
@@ -401,6 +427,7 @@ if __name__ == "__main__":
     )
     # model
     parser.add_argument("--dataset", type=str, default="mvtec")
+    parser.add_argument("--batch_size", type=int, default=8, help="batch size")
     parser.add_argument(
         "--features_list",
         type=int,

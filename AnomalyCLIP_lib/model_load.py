@@ -281,7 +281,7 @@ def get_similarity_map(sm, shape):
 
 def compute_similarity(image_features, text_features, t=2):
     # image_features: [bs, 1370, 768]
-    # text_features: [1 or bs, 2, 768]
+    # text_features: [ bs, 2, 768] if metanet else [1, 2, 768]
 
     # prob_1 = image_features[:, :1, :] @ text_features.t()  # NOT USED
 

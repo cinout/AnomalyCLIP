@@ -10,7 +10,10 @@ python test.py \
   --n_ctx 12 \
   --t_n_ctx 4 \
   --seed $SEED \
-  --measure_image_by_pixel \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_$SEED/epoch_15.pth \
+  --meta_net \
+  --metanet_patch_only \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_$SEED/epoch_15.pth \
+  # --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_$SEED/epoch_15.pth \
+  # --measure_image_by_pixel \
   # --checkpoint_path ./checkpoints/pretrained_mvtec_visualaetanh_$SEED/epoch_15.pth \
   # --visual_ae \

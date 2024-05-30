@@ -5,17 +5,23 @@ from tqdm import tqdm
 from PIL import Image
 import numpy as np
 
-B, L, C = 4, 10, 5
-tensor1 = torch.randint(0, 30, size=(B, L, C))
-tensor2 = torch.tensor(
-    [[8, 1, 3, 0, 5], [4, 1, 2, 3, 5], [7, 3, 6, 4, 8], [8, 7, 0, 2, 3]]
-)
+B = 5
+C = 3
 
-print(tensor1)
+tensor1 = torch.randint(1, 10, size=(B, C))
+tensor2 = torch.randint(1, 10, size=(1, 2, C))
 
-for img_idx, value in enumerate(tensor2):
-    result = tensor1[img_idx, value]
-    print(result)
+tensor1_expand = tensor1.unsqueeze(1)
+
+# res1 = tensor1 @ tensor2.permute(0, 2, 1)
+res2 = tensor1_expand @ tensor2.permute(0, 2, 1)
+
+print(tensor1_expand)
+print(tensor2)
+print("----------")
+print(res2)
+
+
 exit()
 
 

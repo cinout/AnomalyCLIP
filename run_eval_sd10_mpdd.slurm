@@ -34,7 +34,7 @@ SEED=10
 python test.py \
   --dataset mpdd \
   --data_path data/mpdd \
-  --save_path ./results/mpdd/0shot_metanetponly_lr1e4_$SEED \
+  --save_path ./results/mpdd/0shot_metanetponly_lr1e4_bs8_$SEED \
   --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
