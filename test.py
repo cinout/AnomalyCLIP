@@ -64,6 +64,8 @@ def test(args):
     logger = get_logger(args.save_path)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
+    args.device = device
+
     AnomalyCLIP_parameters = {
         "Prompt_length": args.n_ctx,
         "learnabel_text_embedding_depth": args.depth,
