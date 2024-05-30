@@ -74,7 +74,7 @@ def train_model(
     # for MUSC, use the first image of first batch as reference image
     first_batch_image_features = None
     first_batch_patch_features = None
-    if args.musc and image.shape[0] == 1:
+    if args.meta_net and args.musc and image.shape[0] == 1:
         first_batch_images = first_batch_items["img"].to(device)  # [bs, 3, 518, 518]
         with torch.no_grad():
             first_batch_image_features, first_batch_patch_features = model.encode_image(
@@ -90,10 +90,10 @@ def train_model(
                     for feature in first_batch_patch_features
                 ]
 
-            first_batch_image_features = (
-                first_batch_image_features
-                / first_batch_image_features.norm(dim=-1, keepdim=True)
-            )  # [8, 768]
+            # first_batch_image_features = (
+            #     first_batch_image_features
+            #     / first_batch_image_features.norm(dim=-1, keepdim=True)
+            # )  # [8, 768]
 
     # generate prompts
     prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
@@ -201,7 +201,7 @@ def train(args):
     )
     model.eval()
 
-    if args.musc:
+    if args.meta_net and args.musc:
         categories, _ = generate_class_info(args.dataset)
         train_data_by_category = [
             Dataset(
@@ -258,7 +258,7 @@ def train(args):
         loss_list = []
         image_loss_list = []
 
-        if args.musc:
+        if args.meta_net and args.musc:
             random.shuffle(train_dataloader_by_category)
             for train_dataloader in train_dataloader_by_category:
                 # train_dataloder for a category

@@ -32,10 +32,16 @@ from scipy.ndimage import gaussian_filter
 
 
 def generate_text_features(
-    prompt_learner, model, image_features=None, patch_features=None
+    prompt_learner,
+    model,
+    image_features=None,
+    patch_features=None,
+    first_batch_patch_features=None,
 ):
     prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
-        image_features=image_features, patch_features=patch_features
+        image_features=image_features,
+        patch_features=patch_features,
+        first_batch_patch_features=first_batch_patch_features,
     )
     text_features = model.encode_text_learn(
         prompts, tokenized_prompts, compound_prompts_text
@@ -142,6 +148,9 @@ def test(args):
         # for each category
         for batch_idx, items in enumerate(test_dataloader):
             # for count, items in enumerate(tqdm(test_dataloader)):
+            if batch_idx == 0:
+                # store the first batch items in case the last batch only has one image
+                first_batch_items = items
 
             image = items["img"].to(device)
             cls_name = items["cls_name"]
@@ -167,7 +176,7 @@ def test(args):
             with torch.no_grad():
                 image_features, patch_features = model.encode_image(
                     image,
-                    features_list,
+                    args.features_list,
                     DPAM_layer=20,
                     maple=args.maple,
                     compound_deeper_prompts=prompt_learner.visual_deep_prompts,
@@ -181,9 +190,48 @@ def test(args):
                 )  # [bs, 768]
 
                 if args.meta_net:
-                    text_features = generate_text_features(
-                        prompt_learner, model, image_features, patch_features
-                    )  # [bs, 2, 768] if metanet else [1, 2, 768]
+                    # for MUSC, use the first image of first batch as reference image
+                    first_batch_image_features = None
+                    first_batch_patch_features = None
+
+                    if args.musc and image.shape[0] == 1:
+                        first_batch_images = first_batch_items["img"].to(
+                            device
+                        )  # [bs, 3, 518, 518]
+                        first_batch_image_features, first_batch_patch_features = (
+                            model.encode_image(
+                                first_batch_images,
+                                args.features_list,
+                                DPAM_layer=20,
+                                maple=args.maple,
+                                compound_deeper_prompts=prompt_learner.visual_deep_prompts,
+                            )
+                        )
+                        if args.maple:
+                            first_batch_patch_features = [
+                                feature[:, : -args.t_n_ctx, :]
+                                for feature in first_batch_patch_features
+                            ]
+
+                        # first_batch_image_features = (
+                        #     first_batch_image_features
+                        #     / first_batch_image_features.norm(dim=-1, keepdim=True)
+                        # )  # [8, 768]
+
+                        text_features = generate_text_features(
+                            prompt_learner,
+                            model,
+                            image_features,
+                            patch_features,
+                            first_batch_patch_features,
+                        )  # [bs, 2, 768] if metanet else [1, 2, 768]
+                    else:
+                        text_features = generate_text_features(
+                            prompt_learner,
+                            model,
+                            image_features,
+                            patch_features,
+                        )  # [bs, 2, 768] if metanet else [1, 2, 768]
                     # if args.debug_mode:
                     #     content["text_features"] = text_features[0]  # [2, 768]
 
