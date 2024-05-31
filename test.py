@@ -202,6 +202,8 @@ def test(args):
                     first_batch_patch_features = None
 
                     if args.musc and image.shape[0] == 1:
+                        # musc, last batch, and only one image
+
                         first_batch_images = first_batch_items["img"].to(
                             device
                         )  # [bs, 3, 518, 518]
@@ -235,11 +237,14 @@ def test(args):
                             cls_name[0],
                         )  # [bs, 2, 768] if metanet else [1, 2, 768]
                     else:
+                        # musc (not last one-image batch) or non-musc
                         text_features = generate_text_features(
                             prompt_learner,
                             model,
                             image_features,
                             patch_features,
+                            img_path=img_path,
+                            cls_name=cls_name[0],
                         )  # [bs, 2, 768] if metanet else [1, 2, 768]
                     # if args.debug_mode:
                     #     content["text_features"] = text_features[0]  # [2, 768]

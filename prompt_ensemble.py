@@ -523,8 +523,12 @@ class AnomalyCLIP_PromptLearner(nn.Module):
 
             # generate bias
             if self.metanet_patch_only:
+                # patch level features
+
                 if self.musc:
+                    # musc
                     if patch_features[0].shape[0] == 1:
+                        # last batch and only one image
                         assert (
                             first_batch_patch_features is not None
                         ), "need first batch's features because the current batch has only 1 image"
@@ -545,7 +549,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                             patch_features, img_path, cls_name
                         )  # [bs, 768]
                 else:
-                    # patch level features
+                    # non-musc, just patch
                     patch_features = [
                         torch.mean(feature[:, 1:, :], dim=1)
                         for feature in patch_features

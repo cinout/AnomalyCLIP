@@ -12,6 +12,8 @@ python test.py \
   --seed $SEED \
   --meta_net \
   --metanet_patch_only \
+  --musc \
+  --show_musc_visual \
   --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_$SEED/epoch_15.pth \
   # --checkpoint_path ./checkpoints/pretrained_mvtec_baseline_$SEED/epoch_15.pth \
   # --measure_image_by_pixel \
