@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -18,8 +19,13 @@ class MuSc:
         self.r_list = args.r_list
         self.normal_percent = 0.75
         self.image_size = args.image_size
+        self.show_musc_visual = args.show_musc_visual
+        self.seed = args.seed
+        self.save_path = args.save_path
 
-    def process_features(self, patch_features, img_path, take_first_only=False):
+    def process_features(
+        self, patch_features, img_path, cls_name, take_first_only=False
+    ):
         # input patch_features.shape: 4*[bs, 1370, 768]
 
         feature_dim = patch_features[0].shape[-1]
@@ -94,37 +100,45 @@ class MuSc:
             anomaly_map, dim=1, k=math.floor(L * self.normal_percent), largest=False
         )  # indices: [bs, k]
 
-        # # [TODO] the following code is for visualization purpose
-        # for img_idx, path in enumerate(img_path):
-        #     image = Image.open(path).convert("RGBA")
-        #     image = image.resize((H, H))
+        # the following code is for visualization purpose
+        if self.show_musc_visual and self.seed == 10:
+            save_dir = os.path.join(self.save_path, "musc", cls_name)
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir)
 
-        #     pred_normal_pixels = indices[img_idx]
-        #     pred_normal_pixels = [
-        #         (math.floor(v / H), v % H) for v in pred_normal_pixels
-        #     ]  # 2D
-        #     seg = np.full((H, H), False)
-        #     for tup in pred_normal_pixels:
-        #         seg[tup] = True
-        #     mask = np.zeros(
-        #         (H, H, 4),
-        #         dtype=np.uint8,
-        #     )
-        #     mask[seg] = [
-        #         238,
-        #         79,
-        #         38,
-        #         120,
-        #     ]
-        #     mask = Image.fromarray(mask)
-        #     image.paste(mask, (0, 0), mask)
+            for img_idx, path in enumerate(img_path):
+                image = Image.open(path).convert("RGBA")
+                image = image.resize((H, H))
 
-        #     file_path_split = path.split("/")
-        #     anomaly_type = file_path_split[-2]
-        #     file_name = file_path_split[-1]
-        #     file_name = file_name.split(".")[0]
+                pred_normal_pixels = indices[img_idx]
+                pred_normal_pixels = [
+                    (math.floor(v / H), v % H) for v in pred_normal_pixels
+                ]  # 2D
+                seg = np.full((H, H), False)
+                for tup in pred_normal_pixels:
+                    seg[tup] = True
+                mask = np.zeros(
+                    (H, H, 4),
+                    dtype=np.uint8,
+                )
+                mask[seg] = [
+                    238,
+                    79,
+                    38,
+                    120,
+                ]
+                mask = Image.fromarray(mask)
+                image.paste(mask, (0, 0), mask)
 
-        #     image.save(f"inspect_{anomaly_type}_{file_name}.png", "PNG")
+                file_path_split = path.split("/")
+                anomaly_type = file_path_split[-2]
+                file_name = file_path_split[-1]
+                file_name = file_name.split(".")[0]
+
+                image.save(
+                    os.path.join(save_dir, f"{anomaly_type}_{file_name}.png"),
+                    "PNG",
+                )
 
         normal_features = []
 

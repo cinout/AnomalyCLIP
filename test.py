@@ -37,11 +37,15 @@ def generate_text_features(
     image_features=None,
     patch_features=None,
     first_batch_patch_features=None,
+    img_path=None,
+    cls_name=None,
 ):
     prompts, tokenized_prompts, compound_prompts_text = prompt_learner(
         image_features=image_features,
         patch_features=patch_features,
         first_batch_patch_features=first_batch_patch_features,
+        img_path=img_path,
+        cls_name=cls_name,
     )
     text_features = model.encode_text_learn(
         prompts, tokenized_prompts, compound_prompts_text
@@ -159,6 +163,7 @@ def test(args):
             cls_id = items["cls_id"]
             gt_mask = items["img_mask"]
             gt_mask[gt_mask > 0.5], gt_mask[gt_mask <= 0.5] = 1, 0  # [bs, 1, 518, 518]
+            img_path = items["img_path"]
 
             results[cls_name[0]]["imgs_masks"].append(gt_mask)  # px
             image_anomaly = items["anomaly"].detach().cpu()  # [bs]
@@ -226,6 +231,8 @@ def test(args):
                             image_features,
                             patch_features,
                             first_batch_patch_features,
+                            img_path,
+                            cls_name[0],
                         )  # [bs, 2, 768] if metanet else [1, 2, 768]
                     else:
                         text_features = generate_text_features(
@@ -547,6 +554,11 @@ if __name__ == "__main__":
         "--bias_ctx_pos_only",
         action="store_true",
         help="add metanet bias to ctx_pos only",
+    )
+    parser.add_argument(
+        "--show_musc_visual",
+        action="store_true",
+        help="output musc's selected features location [visual]",
     )
 
     args = parser.parse_args()

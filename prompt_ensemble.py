@@ -493,6 +493,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         cls_id=None,
         first_batch_patch_features=None,  # only not None when (1) last batch, and (2) only 1 image in last batch
         img_path=None,
+        cls_name=None,
     ):
         # image_features.shape: [bs, 768]
         # patch_features/first_batch_patch_features: 4*[bs, 1370, 768]
@@ -537,11 +538,11 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                             )
                         ]
                         patch_features = self.musc_process.process_features(
-                            patch_features, img_path, take_first_only=True
+                            patch_features, img_path, cls_name, take_first_only=True
                         )  # [bs, 768]
                     else:
                         patch_features = self.musc_process.process_features(
-                            patch_features, img_path
+                            patch_features, img_path, cls_name
                         )  # [bs, 768]
                 else:
                     # patch level features
