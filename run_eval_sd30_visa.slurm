@@ -34,8 +34,8 @@ SEED=30
 python test.py \
   --dataset visa \
   --data_path data/visa \
-  --save_path ./results/visa/0shot_metanetponly_lr1e4_musc_cluster_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc_cluster_$SEED/epoch_15.pth \
+  --save_path ./results/visa/0shot_metanetponly_lr1e4_musc_cluster_ctxpos_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc_cluster_ctxpos_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
@@ -46,6 +46,7 @@ python test.py \
   --metanet_patch_only \
   --musc \
   --musc_cluster \
+  --bias_ctx_pos_only \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
