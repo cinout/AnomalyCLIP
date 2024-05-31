@@ -34,8 +34,8 @@ SEED=30
 python test.py \
   --dataset btad \
   --data_path data/btad \
-  --save_path ./results/btad/0shot_metanetponly_lr1e4_musc_ctxpos_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc_ctxpos_$SEED/epoch_15.pth \
+  --save_path ./results/btad/0shot_metanetponly_lr1e4_musc_cluster_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc_cluster_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
@@ -45,8 +45,7 @@ python test.py \
   --meta_net \
   --metanet_patch_only \
   --musc \
-  --bias_ctx_pos_only \
-  --show_musc_visual \
+  --musc_cluster \
   
 
 ##Log this job's resource usage stats###
