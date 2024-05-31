@@ -11,7 +11,7 @@
 
 #SBATCH --job-name="t_visa"
 #SBATCH --account=punim1623
-#SBATCH --time=0-03:00:00
+#SBATCH --time=0-05:00:00
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -46,7 +46,7 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_visa_metanetponly_lr1e4_musc_ctxpos_$SEED/ \
+  --save_path ./checkpoints/pretrained_visa_metanetponly_lr1e4_musc_cluster_$SEED/ \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
@@ -55,7 +55,7 @@ python train.py \
   --metanet_patch_only \
   --learning_rate 0.0001 \
   --musc \
-  --bias_ctx_pos_only \
+  --musc_cluster \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s

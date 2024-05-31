@@ -4,52 +4,49 @@ import random
 from tqdm import tqdm
 from PIL import Image
 import numpy as np
+from sklearn.cluster import KMeans
 
 B = 5
 C = 3
 
-tensor1 = torch.randint(1, 10, size=(1, 1, 1, C))
-print(tensor1)
-print(tensor1.shape)
+tensor1 = torch.randn(size=(500, 768))
+tensor1 = tensor1.detach().cpu().numpy()
+kmeans = KMeans(n_clusters=8, n_init="auto").fit(tensor1)
+cluster_centers = kmeans.cluster_centers_
+cluster_centers = torch.tensor(cluster_centers, device="cpu")
+print(cluster_centers)
+
+# H = 37
+# image_size = 518
+
+# path = "data/mvtec/cable/test/cut_inner_insulation/001.png"
+# image = Image.open(path).convert("RGBA")
+# image = image.resize((H, H))
 
 
-tensor1 = tensor1.expand(size=(B, *tensor1.shape[1:]))
-print(tensor1)
-print(tensor1.shape)
-exit()
+# values = random.sample(list(range(H * H - 1)), math.floor(H * H * 0.6))
+# values = [(math.floor(v / H), v % H) for v in values]
 
 
-H = 37
-image_size = 518
-
-path = "data/mvtec/cable/test/cut_inner_insulation/001.png"
-image = Image.open(path).convert("RGBA")
-image = image.resize((H, H))
+# seg = np.full((H, H), False)
+# for tup in values:
+#     seg[tup] = True
 
 
-values = random.sample(list(range(H * H - 1)), math.floor(H * H * 0.6))
-values = [(math.floor(v / H), v % H) for v in values]
+# mask = np.zeros(
+#     (H, H, 4),
+#     dtype=np.uint8,
+# )
+# mask[seg] = [
+#     238,
+#     79,
+#     38,
+#     89,
+# ]
+# mask = Image.fromarray(mask)
+# image.paste(mask, (0, 0), mask)
 
-
-seg = np.full((H, H), False)
-for tup in values:
-    seg[tup] = True
-
-
-mask = np.zeros(
-    (H, H, 4),
-    dtype=np.uint8,
-)
-mask[seg] = [
-    238,
-    79,
-    38,
-    89,
-]
-mask = Image.fromarray(mask)
-image.paste(mask, (0, 0), mask)
-
-image.save("test.png", "PNG")
+# image.save("test.png", "PNG")
 
 AnomalyCLIP_keys = [
     "positional_embedding",

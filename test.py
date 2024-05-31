@@ -565,6 +565,11 @@ if __name__ == "__main__":
         action="store_true",
         help="output musc's selected features location [visual]",
     )
+    parser.add_argument(
+        "--musc_cluster",
+        action="store_true",
+        help="perform clustering on musc selected features",
+    )
 
     args = parser.parse_args()
     print(

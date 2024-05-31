@@ -440,6 +440,16 @@ if __name__ == "__main__":
         action="store_true",
         help="add metanet bias to ctx_pos only",
     )
+    parser.add_argument(
+        "--musc_cluster",
+        action="store_true",
+        help="perform clustering on musc selected features",
+    )
+    parser.add_argument(
+        "--show_musc_visual",
+        action="store_true",
+        help="output musc's selected features location [visual]",
+    )
 
     args = parser.parse_args()
 

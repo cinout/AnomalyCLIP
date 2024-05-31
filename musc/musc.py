@@ -6,6 +6,7 @@ from musc._MSM import MSM
 from musc._LNAMD import LNAMD
 import math
 from PIL import Image
+from sklearn.cluster import KMeans
 
 
 class MuSc:
@@ -17,11 +18,12 @@ class MuSc:
         self.image_size = args.image_size
         self.features_list = args.features_list
         self.r_list = args.r_list
-        self.normal_percent = 0.75
+        self.normal_percent = 0.75  # TODO: does it matter?
         self.image_size = args.image_size
         self.show_musc_visual = args.show_musc_visual
         self.seed = args.seed
         self.save_path = args.save_path
+        self.musc_cluster = args.musc_cluster
 
     def process_features(
         self, patch_features, img_path, cls_name, take_first_only=False
@@ -145,7 +147,21 @@ class MuSc:
         for img_idx, value in enumerate(indices):
             # for each image in the batch
             normal_patch_features = patch_features[img_idx, value]  # [k, C]
-            normal_patch_features = torch.mean(normal_patch_features, dim=0)  # [C, ]
+
+            if self.musc_cluster:
+                # find the cluster centers
+                normal_patch_features = normal_patch_features.detach().cpu().numpy()
+                kmeans = KMeans(n_clusters=8, n_init="auto").fit(normal_patch_features)
+                cluster_centers = kmeans.cluster_centers_
+                cluster_centers = torch.tensor(
+                    cluster_centers, device=self.device
+                )  # [#cluster=8, C]
+                normal_patch_features = torch.mean(cluster_centers, dim=0)  # [C, ]
+            else:
+                normal_patch_features = torch.mean(
+                    normal_patch_features, dim=0
+                )  # [C, ]
+
             normal_features.append(normal_patch_features)
 
         normal_features = torch.stack(normal_features, dim=0)  # [bs, C]
