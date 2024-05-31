@@ -46,6 +46,7 @@ python test.py \
   --metanet_patch_only \
   --musc \
   --bias_ctx_pos_only \
+  --show_musc_visual \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
