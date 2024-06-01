@@ -46,7 +46,7 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc_cluste_ctxpos_$SEED/ \
+  --save_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc_cluster_ctxpos_$SEED/ \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
