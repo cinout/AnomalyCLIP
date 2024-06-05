@@ -34,8 +34,8 @@ SEED=10
 python test.py \
   --dataset dagm \
   --data_path data/dagm \
-  --save_path ./results/dagm/0shot_metanetponly_lr1e4_musc_cluster_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc_cluster_$SEED/epoch_15.pth \
+  --save_path ./results/dagm/0shot_metanetponly_lr1e4_musc_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
@@ -45,7 +45,7 @@ python test.py \
   --meta_net \
   --metanet_patch_only \
   --musc \
-  --musc_cluster \
+  # --musc_cluster \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
