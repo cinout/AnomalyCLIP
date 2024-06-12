@@ -546,6 +546,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                             patch_features, img_path, cls_name, take_first_only=True
                         )  # [bs, 768]
                     else:
+                        # default musc scenario
                         patch_features = self.musc_process.process_features(
                             patch_features, img_path, cls_name
                         )  # [bs, 768]

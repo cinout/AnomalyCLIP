@@ -25,6 +25,7 @@ class MuSc:
         self.save_path = args.save_path
         self.musc_cluster = args.musc_cluster
         self.bias_ctx_match = args.bias_ctx_match
+        self.n_ctx = args.n_ctx
 
     def process_features(
         self, patch_features, img_path, cls_name, take_first_only=False
@@ -152,7 +153,9 @@ class MuSc:
             if self.musc_cluster:
                 # find the cluster centers
                 normal_patch_features = normal_patch_features.detach().cpu().numpy()
-                kmeans = KMeans(n_clusters=8, n_init="auto").fit(normal_patch_features)
+                kmeans = KMeans(n_clusters=self.n_ctx, n_init="auto").fit(
+                    normal_patch_features
+                )
                 cluster_centers = kmeans.cluster_centers_
                 cluster_centers = torch.tensor(
                     cluster_centers, device=self.device
