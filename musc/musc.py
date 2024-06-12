@@ -24,6 +24,7 @@ class MuSc:
         self.seed = args.seed
         self.save_path = args.save_path
         self.musc_cluster = args.musc_cluster
+        self.bias_ctx_match = args.bias_ctx_match
 
     def process_features(
         self, patch_features, img_path, cls_name, take_first_only=False

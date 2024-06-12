@@ -345,15 +345,15 @@ def test(args):
 
                 results[cls_name[0]]["anomaly_maps"].append(anomaly_map)
 
-                if args.seed == 20:
-                    visualizer(
-                        items["img_path"],
-                        anomaly_map.detach().cpu().numpy(),
-                        args.image_size,
-                        args.save_path,
-                        cls_name,
-                        gt_mask,
-                    )
+                # if args.seed == 20:
+                #     visualizer(
+                #         items["img_path"],
+                #         anomaly_map.detach().cpu().numpy(),
+                #         args.image_size,
+                #         args.save_path,
+                #         cls_name,
+                #         gt_mask,
+                #     )
 
     # if args.debug_mode:
     #     stored_features["individual"] = all_results
@@ -569,6 +569,11 @@ if __name__ == "__main__":
         "--musc_cluster",
         action="store_true",
         help="perform clustering on musc selected features",
+    )
+    parser.add_argument(
+        "--bias_ctx_match",
+        action="store_true",
+        help="attach different bias to different ctx",
     )
 
     args = parser.parse_args()

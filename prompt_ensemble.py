@@ -199,6 +199,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.visual_mlp = args.visual_mlp
         self.musc = args.musc
         self.bias_ctx_pos_only = args.bias_ctx_pos_only
+        self.bias_ctx_match = args.bias_ctx_match
         self.features_list = args.features_list
         vis_dim = clip_model.visual.output_dim  # 768
 

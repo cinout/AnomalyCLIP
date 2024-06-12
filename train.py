@@ -450,6 +450,11 @@ if __name__ == "__main__":
         action="store_true",
         help="output musc's selected features location [visual]",
     )
+    parser.add_argument(
+        "--bias_ctx_match",
+        action="store_true",
+        help="attach different bias to different ctx",
+    )
 
     args = parser.parse_args()
 
