@@ -18,7 +18,7 @@ class MuSc:
         self.image_size = args.image_size
         self.features_list = args.features_list
         self.r_list = args.r_list
-        self.normal_percent = 0.75  # TODO: does it matter?
+        self.normal_percent = 0.9  # TODO: does it matter?
         self.image_size = args.image_size
         self.show_musc_visual = args.show_musc_visual
         self.seed = args.seed
