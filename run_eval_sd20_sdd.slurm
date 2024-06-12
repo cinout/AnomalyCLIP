@@ -34,8 +34,8 @@ SEED=20
 python test.py \
   --dataset sdd \
   --data_path data/sdd \
-  --save_path ./results/sdd/0shot_metanetponly_lr1e4_musc09_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc09_$SEED/epoch_15.pth \
+  --save_path ./results/sdd/0shot_metanetponly_lr1e4_musc09_cluster_bcmatch_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc09_cluster_bcmatch_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
@@ -45,7 +45,8 @@ python test.py \
   --meta_net \
   --metanet_patch_only \
   --musc \
-  # --musc_cluster \
+  --musc_cluster \
+  --bias_ctx_match \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
