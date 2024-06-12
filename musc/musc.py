@@ -148,7 +148,10 @@ class MuSc:
 
         for img_idx, value in enumerate(indices):
             # for each image in the batch
-            normal_patch_features = patch_features[img_idx, value]  # [k, C]
+
+            normal_patch_features = patch_features[
+                img_idx, value
+            ]  # [k, C], k = L * self.normal_percent
 
             if self.musc_cluster:
                 # find the cluster centers
@@ -159,8 +162,12 @@ class MuSc:
                 cluster_centers = kmeans.cluster_centers_
                 cluster_centers = torch.tensor(
                     cluster_centers, device=self.device
-                )  # [#cluster=8, C]
-                normal_patch_features = torch.mean(cluster_centers, dim=0)  # [C, ]
+                )  # [#cluster, C]
+
+                if self.bias_ctx_match:
+                    normal_patch_features = cluster_centers
+                else:
+                    normal_patch_features = torch.mean(cluster_centers, dim=0)  # [C, ]
             else:
                 normal_patch_features = torch.mean(
                     normal_patch_features, dim=0
@@ -168,6 +175,8 @@ class MuSc:
 
             normal_features.append(normal_patch_features)
 
-        normal_features = torch.stack(normal_features, dim=0)  # [bs, C]
+        normal_features = torch.stack(
+            normal_features, dim=0
+        )  # [bs, C] or [bs, #cluster, C]
 
         return normal_features

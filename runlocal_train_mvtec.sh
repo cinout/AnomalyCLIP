@@ -4,6 +4,7 @@ python train.py \
   --dataset mvtec \
   --train_data_path data/mvtec \
   --features_list 6 12 18 24 \
+  --learning_rate 0.0001 \
   --image_size 518 \
   --batch_size 8 \
   --print_freq 1 \
@@ -17,9 +18,7 @@ python train.py \
   --meta_net \
   --metanet_patch_only \
   --musc \
-  --learning_rate 0.0001 \
   --musc_cluster \
+  --bias_ctx_match \
   # --bias_ctx_pos_only \
-  # --no_imageloss \
-  # --meta_net \
   # --metanet_patch_and_global \

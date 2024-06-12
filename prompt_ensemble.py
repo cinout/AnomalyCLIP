@@ -544,7 +544,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                         ]
                         patch_features = self.musc_process.process_features(
                             patch_features, img_path, cls_name, take_first_only=True
-                        )  # [bs, 768]
+                        )  # [bs, #cluster, C] if self.bias_ctx_match else [bs, 768]
                     else:
                         # default musc scenario
                         patch_features = self.musc_process.process_features(
@@ -576,12 +576,17 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                 )  # [bs, ctx_dim or ctx_dim*2], ctx_dim=768
 
             # add bias to the learnable ctx
-            bs, _ = bias.shape
+            bs = bias.shape[
+                0
+            ]  # [bs, #cluster, C] if self.bias_ctx_match else [bs, 768]
 
             ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)
             ctx_neg = ctx_neg.unsqueeze(0)
 
-            bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
+            if self.bias_ctx_match:
+                bias = bias.unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, #cluster=12, 768)
+            else:
+                bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
 
             ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
             if self.bias_ctx_pos_only:
