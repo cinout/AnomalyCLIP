@@ -575,6 +575,11 @@ if __name__ == "__main__":
         action="store_true",
         help="attach different bias to different ctx",
     )
+    parser.add_argument(
+        "--no_text_template",
+        action="store_true",
+        help="12 learnable text templates are totally conditioned on metanet's output",
+    )
 
     args = parser.parse_args()
     print(

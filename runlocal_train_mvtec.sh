@@ -20,5 +20,6 @@ python train.py \
   --musc \
   --musc_cluster \
   --bias_ctx_match \
+  --no_text_template \
   # --bias_ctx_pos_only \
   # --metanet_patch_and_global \

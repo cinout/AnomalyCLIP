@@ -201,6 +201,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         self.bias_ctx_pos_only = args.bias_ctx_pos_only
         self.bias_ctx_match = args.bias_ctx_match
         self.features_list = args.features_list
+        self.no_text_template = args.no_text_template
         vis_dim = clip_model.visual.output_dim  # 768
 
         """
@@ -260,7 +261,7 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                             "linear2",
                             nn.Linear(
                                 vis_dim // 16,
-                                ctx_dim,
+                                ctx_dim * 2 if self.no_text_template else ctx_dim,
                             ),
                         ),
                     ]
@@ -362,10 +363,14 @@ class AnomalyCLIP_PromptLearner(nn.Module):
         """
         initialize learnable word embeddings
         """
-        self.ctx_pos = nn.Parameter(
-            ctx_vectors_pos
-        )  # to be optimized # (1, 1, 12, 768)
-        self.ctx_neg = nn.Parameter(ctx_vectors_neg)  # to be optimized
+        if self.no_text_template:
+            self.ctx_pos = ctx_vectors_pos
+            self.ctx_neg = ctx_vectors_neg
+        else:
+            self.ctx_pos = nn.Parameter(
+                ctx_vectors_pos
+            )  # to be optimized # (1, 1, 12, 768)
+            self.ctx_neg = nn.Parameter(ctx_vectors_neg)  # to be optimized
 
         classnames = [name.replace("_", " ") for name in classnames]
         # name_lens = [len(_tokenizer.encode(name)) for name in classnames]
@@ -578,21 +583,33 @@ class AnomalyCLIP_PromptLearner(nn.Module):
             # add bias to the learnable ctx
             bs = bias.shape[
                 0
-            ]  # [bs, #cluster, C] if self.bias_ctx_match else [bs, 768]
-
-            ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)
-            ctx_neg = ctx_neg.unsqueeze(0)
+            ]  # [bs, #cluster, C] if self.bias_ctx_match else [bs, 768];  or if self.no_text_template, then C*2
 
             if self.bias_ctx_match:
                 bias = bias.unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, #cluster=12, 768)
             else:
                 bias = bias.unsqueeze(1).unsqueeze(1).unsqueeze(1)  # (bs, 1, 1, 1, 768)
 
-            ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
-            if self.bias_ctx_pos_only:
-                ctx_neg = ctx_neg.expand(size=(bs, *ctx_neg.shape[1:]))
+            if self.no_text_template:
+                assert self.bias_ctx_match, "need clusters!"
+                ctx_pos = bias[..., : self.ctx_dim]
+                ctx_neg = bias[..., self.ctx_dim :]
+                print(ctx_pos.shape)
+                print(ctx_neg.shape)
+                exit()
+
+                # TODO:
+
+                pass
             else:
-                ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
+                ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)
+                ctx_neg = ctx_neg.unsqueeze(0)
+
+                ctx_pos = ctx_pos + bias  # (bs, 1, 1, 12, 768)
+                if self.bias_ctx_pos_only:
+                    ctx_neg = ctx_neg.expand(size=(bs, *ctx_neg.shape[1:]))
+                else:
+                    ctx_neg = ctx_neg + bias  # (bs, 1, 1, 12, 768)
 
             prefix_shape = prefix_pos.shape
             suffix_shape = suffix_pos.shape
