@@ -47,6 +47,7 @@ python test.py \
   --musc \
   --musc_cluster \
   --bias_ctx_match \
+  --show_musc_visual \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
