@@ -34,8 +34,8 @@ SEED=10
 python test.py \
   --dataset mpdd \
   --data_path data/mpdd \
-  --save_path ./results/mpdd/0shot_metanetponly_lr1e4_musc09_cluster_bcmatch_$SEED \
-  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc09_cluster_bcmatch_$SEED/epoch_15.pth \
+  --save_path ./results/mpdd/0shot_metanetponly_lr1e4_musc09_cluster_bcmatch_notext_$SEED \
+  --checkpoint_path ./checkpoints/pretrained_mvtec_metanetponly_lr1e4_musc09_cluster_bcmatch_notext_$SEED/epoch_15.pth \
   --features_list 6 12 18 24 \
   --image_size 518 \
   --depth 9 \
@@ -47,7 +47,8 @@ python test.py \
   --musc \
   --musc_cluster \
   --bias_ctx_match \
-  --show_musc_visual \
+  --no_text_template \
+  
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
