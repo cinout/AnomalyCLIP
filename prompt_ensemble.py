@@ -594,13 +594,6 @@ class AnomalyCLIP_PromptLearner(nn.Module):
                 assert self.bias_ctx_match, "need clusters!"
                 ctx_pos = bias[..., : self.ctx_dim]
                 ctx_neg = bias[..., self.ctx_dim :]
-                print(ctx_pos.shape)
-                print(ctx_neg.shape)
-                exit()
-
-                # TODO:
-
-                pass
             else:
                 ctx_pos = ctx_pos.unsqueeze(0)  # (1, 1, 1, 12, 768)
                 ctx_neg = ctx_neg.unsqueeze(0)

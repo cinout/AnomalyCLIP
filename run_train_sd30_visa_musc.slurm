@@ -46,7 +46,7 @@ python train.py \
   --print_freq 1 \
   --epoch 15 \
   --save_freq 1 \
-  --save_path ./checkpoints/pretrained_visa_metanetponly_lr1e4_musc09_cluster_bcmatch_$SEED/ \
+  --save_path ./checkpoints/pretrained_visa_metanetponly_lr1e4_musc09_cluster_bcmatch_notext_$SEED/ \
   --depth 9 \
   --n_ctx 12 \
   --t_n_ctx 4 \
@@ -57,6 +57,7 @@ python train.py \
   --musc \
   --musc_cluster \
   --bias_ctx_match \
+  --no_text_template \
 
 ##Log this job's resource usage stats###
 my-job-stats -a -n -s
